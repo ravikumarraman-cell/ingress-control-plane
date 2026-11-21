@@ -64,6 +64,43 @@ export const DEFAULT_CUSTOM_POLICY_RULES: CustomPolicyRule[] = [
 
 export const DEFAULT_DYNAMIC_BLUEPRINTS: DynamicAgentBlueprint[] = [
   {
+    agentId: "55555555-4444-4000-8000-000000000500",
+    name: "EligibilityPreflightAgent",
+    role: "Adoption Pre-Flight & Blocker Verifier",
+    systemPrompt:
+      "You are EligibilityPreflightAgent under sa-ingress-readonly. Validate Infoblox/CNAME DNS eligibility, origin health-check readiness, Cloudflare IP allowlisting, origin TLS cert readiness, and unsupported APIM/DR/private endpoint patterns prior to planning.",
+    taskTemplate:
+      "Run pre-flight adoption readiness checks for {{upstream.IngressIntakeAgent.hostname}} ({{upstream.IngressIntakeAgent.environment}}/{{upstream.IngressIntakeAgent.exposure}}) using DNS, LB, and TLS telemetry.",
+    hookStage: "PRE_INTAKE",
+    dependsOn: ["IngressIntakeAgent"],
+    outputSchema: [
+      {
+        key: "eligible",
+        type: "boolean",
+        description: "True when all pre-flight DNS, health check, cert, and allowlist prerequisites pass",
+        required: true,
+      },
+      {
+        key: "dnsEligible",
+        type: "boolean",
+        description: "Infoblox/Cloud DNS CNAME readiness check",
+        required: true,
+      },
+      {
+        key: "recommendedPattern",
+        type: "string",
+        description: "Recommended pattern (STANDARD_EDGE_INGRESS, INTERNAL_MESH_OR_IP_FILTERING, or UNSUPPORTED)",
+        required: true,
+      },
+    ],
+    allowedTools: ["get_dns_records", "get_tls_certs", "get_lb_config"],
+    triggerCondition: { alwaysActive: true },
+    canForceApproval: false,
+    spawnedBy: "OPERATOR",
+    enabled: true,
+    createdAt: "2026-11-20T11:58:00.000Z",
+  },
+  {
     agentId: "55555555-4444-4000-8000-000000000501",
     name: "TLSInspectorAgent",
     role: "Certificate & TLS Posture Inspector",
@@ -136,6 +173,49 @@ export const DEFAULT_DYNAMIC_BLUEPRINTS: DynamicAgentBlueprint[] = [
     spawnedBy: "OPERATOR",
     enabled: true,
     createdAt: "2026-11-20T12:01:00.000Z",
+  },
+  {
+    agentId: "55555555-4444-4000-8000-000000000503",
+    name: "RolloutCompanionAgent",
+    role: "DNS Cutover & 7-21d WAF Tuning Companion",
+    systemPrompt:
+      "You are RolloutCompanionAgent under sa-ingress-readonly. Schedule the post-approval rollout milestones covering the 20-30 minute Infoblox CNAME cutover window and bounded 7-21 day WAF log-to-block tuning cadence.",
+    taskTemplate:
+      "Prepare post-apply cutover and WAF tuning checklist from ChangePlan {{upstream.ChangePlanAgent.planId}} (dryRunPassed={{upstream.ChangePlanAgent.dryRunPassed}}).",
+    hookStage: "POST_VERIFY",
+    dependsOn: ["ChangePlanAgent"],
+    outputSchema: [
+      {
+        key: "dnsCutoverWindow",
+        type: "string",
+        description: "Expected DNS CNAME TTL cutover window",
+        required: true,
+      },
+      {
+        key: "wafTuningDays",
+        type: "number",
+        description: "Bounded WAF Log/Detect tuning days (7-21 external, 0 internal)",
+        required: true,
+      },
+      {
+        key: "targetWafMode",
+        type: "string",
+        description: "WAF lifecycle transition plan",
+        required: true,
+      },
+      {
+        key: "checklist",
+        type: "string[]",
+        description: "Ordered rollout companion checklist",
+        required: false,
+      },
+    ],
+    allowedTools: ["get_dns_records", "evaluate_opa_policies"],
+    triggerCondition: { alwaysActive: true },
+    canForceApproval: false,
+    spawnedBy: "OPERATOR",
+    enabled: true,
+    createdAt: "2026-11-20T12:02:00.000Z",
   },
 ];
 
@@ -867,6 +947,14 @@ class ControlPlaneStore {
         }
         if (!Array.isArray(parsed.dynamicAgentBlueprints)) {
           parsed.dynamicAgentBlueprints = DEFAULT_DYNAMIC_BLUEPRINTS.map((bp) => ({ ...bp }));
+        } else {
+          const existingIds = new Set(parsed.dynamicAgentBlueprints.map((b) => b.agentId));
+          const existingNames = new Set(parsed.dynamicAgentBlueprints.map((b) => b.name));
+          for (const defBp of DEFAULT_DYNAMIC_BLUEPRINTS) {
+            if (!existingIds.has(defBp.agentId) && !existingNames.has(defBp.name)) {
+              parsed.dynamicAgentBlueprints.push({ ...defBp });
+            }
+          }
         }
         return parsed;
       }

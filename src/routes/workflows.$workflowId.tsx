@@ -22,7 +22,9 @@ import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import { CanaryRolloutPanel } from "../components/workflows/CanaryRolloutPanel";
 import { DiffHunkCard } from "../components/workflows/DiffHunkCard";
+import { RolloutCompanionPanel } from "../components/workflows/RolloutCompanionPanel";
 import { SupervisorRevisePanel } from "../components/workflows/SupervisorRevisePanel";
+import { TroubleshootingPanel } from "../components/workflows/TroubleshootingPanel";
 import { WorkflowSummaryStrip } from "../components/workflows/WorkflowSummaryStrip";
 import {
   fetchWorkflowById,
@@ -42,7 +44,7 @@ export function WorkflowDetailRouteView() {
   const navigate = useNavigate();
 
   const [inspectorTab, setInspectorTab] = useState<
-    "config" | "diffs" | "rollback" | "policy" | "traces"
+    "config" | "diffs" | "rollback" | "policy" | "rollout" | "troubleshoot" | "traces"
   >("config");
   const [jsonScope, setJsonScope] = useState<"config" | "full">("config");
   const [decisionModal, setDecisionModal] = useState<"APPROVE" | "REJECT" | null>(null);
@@ -361,12 +363,21 @@ export function WorkflowDetailRouteView() {
       />
 
       {wf.errorMessage && (
-        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900">
-          <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-          <div>
-            <div className="font-semibold">Execution Halted</div>
-            <p className="mt-0.5">{wf.errorMessage}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold">Execution Halted</div>
+              <p className="mt-0.5">{wf.errorMessage}</p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setInspectorTab("troubleshoot")}
+            className="px-3 py-1.5 text-xs font-medium text-red-800 bg-white border border-red-200 rounded-md hover:bg-red-100 transition-colors whitespace-nowrap shrink-0"
+          >
+            Diagnose with TroubleshootingAgent
+          </button>
         </div>
       )}
 
@@ -463,6 +474,8 @@ export function WorkflowDetailRouteView() {
               label: "Policy Matrix",
               count: totalChecksCount > 0 ? `${passedChecksCount}/${totalChecksCount}` : undefined,
             },
+            { id: "rollout", label: "Rollout Companion" },
+            { id: "troubleshoot", label: "Troubleshoot" },
             { id: "traces", label: "ADK Agent Pipeline", count: wf.agentTraces.length },
           ]}
         />
@@ -606,6 +619,19 @@ export function WorkflowDetailRouteView() {
               </div>
             )}
           </div>
+        )}
+
+        {inspectorTab === "rollout" && <RolloutCompanionPanel workflow={wf} />}
+
+        {inspectorTab === "troubleshoot" && (
+          <TroubleshootingPanel
+            workflow={wf}
+            onUseSupervisorFix={
+              ["AWAITING_APPROVAL", "FAILED", "REJECTED", "DRIFT_ABORTED"].includes(wf.status)
+                ? () => setShowRevisePanel(true)
+                : undefined
+            }
+          />
         )}
 
         {inspectorTab === "traces" && (

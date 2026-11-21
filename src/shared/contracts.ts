@@ -272,7 +272,7 @@ export const CORE_AGENT_OUTPUT_FIELDS: Array<{
   },
 ];
 
-export const MAX_DYNAMIC_AGENTS_PER_WORKFLOW = 4;
+export const MAX_DYNAMIC_AGENTS_PER_WORKFLOW = 6;
 
 const SECRET_PATTERNS: RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
@@ -283,6 +283,19 @@ const SECRET_PATTERNS: RegExp[] = [
 export function containsEmbeddedSecret(value: string): boolean {
   return SECRET_PATTERNS.some((pattern) => pattern.test(value));
 }
+
+export const DnsProviderSchema = z.enum(["infoblox", "cloud_dns_delegated", "external_other"]);
+export type DnsProvider = z.infer<typeof DnsProviderSchema>;
+
+export const DnsRecordTypeSchema = z.enum(["cname", "a_record", "new_record"]);
+export type DnsRecordType = z.infer<typeof DnsRecordTypeSchema>;
+
+export const ConstrainedUseCaseSchema = z.enum([
+  "managed_apim",
+  "dr_pool",
+  "private_endpoint",
+]);
+export type ConstrainedUseCase = z.infer<typeof ConstrainedUseCaseSchema>;
 
 export const IngressRequestSchema = z
   .object({
@@ -308,6 +321,12 @@ export const IngressRequestSchema = z
     exposure: ExposureSchema,
     tlsProfile: TlsProfileSchema,
     rawJustification: z.string().min(10).max(2000),
+    dnsProvider: DnsProviderSchema.optional(),
+    dnsRecordType: DnsRecordTypeSchema.optional(),
+    healthCheckPath: z.string().max(120).optional(),
+    originCertReady: z.boolean().optional(),
+    cloudflareAllowlisted: z.boolean().optional(),
+    useCaseFlags: z.array(ConstrainedUseCaseSchema).optional(),
   })
   .superRefine((data, ctx) => {
     if (
@@ -517,6 +536,7 @@ export interface WorkflowRun {
       wafEnforcement: string;
     };
   } | null;
+  rolloutCompanion?: RolloutCompanionPlan | null;
   errorMessage?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -547,4 +567,126 @@ export interface ArchitectureDocPayload {
   implementationPlanMarkdown: string;
   implementationProgressPath: string;
   implementationProgressMarkdown: string;
+}
+
+// Ingress Adoption Agents Contracts (Top-10 Blockers Solution)
+export const OnboardingAssessmentInputSchema = z.object({
+  appName: z.string().min(1).max(63).default("my-service"),
+  environment: EnvironmentSchema.default("prod"),
+  exposure: ExposureSchema.default("external"),
+  internalOnlyPattern: z.boolean().default(false),
+  hostname: z.string().min(3).max(253).default("api.corp.example.com"),
+  pathPrefix: z.string().min(1).max(120).default("/v1/api"),
+  backendService: z.string().min(1).max(63).default("api-core-svc"),
+  backendPort: z.number().int().min(1).max(65535).default(8443),
+  tlsProfile: TlsProfileSchema.default("tls_1_3_strict"),
+  dnsProvider: DnsProviderSchema.default("infoblox"),
+  dnsRecordType: DnsRecordTypeSchema.default("cname"),
+  healthCheckPath: z.string().max(120).default("/healthz"),
+  originCertReady: z.boolean().default(true),
+  originCertHasSanAndChain: z.boolean().default(true),
+  cloudflareAllowlisted: z.boolean().default(true),
+  hasAdminAccess: z.boolean().default(true),
+  ticketRef: z.string().max(64).nullable().optional(),
+  useCaseFlags: z.array(ConstrainedUseCaseSchema).default([]),
+  notes: z.string().max(1000).optional(),
+});
+export type OnboardingAssessmentInput = z.infer<typeof OnboardingAssessmentInputSchema>;
+
+export type OnboardingVerdict =
+  | "RECOMMENDED_INGRESS"
+  | "USE_IP_FILTERING"
+  | "UNSUPPORTED_CONSTRAINT"
+  | "FIX_PREREQUISITES";
+
+export interface BlockerCheckItem {
+  blockerNumber: number;
+  blockerTitle: string;
+  status: "PASS" | "ACTION_REQUIRED" | "BLOCKED";
+  finding: string;
+  remediation: string;
+}
+
+export interface ServiceNowPrefillPayload {
+  shortDescription: string;
+  category: string;
+  assignmentGroup: string;
+  riskLevel: BlastRadiusScore;
+  rbacGuardrailNote: string;
+  implementationPlan: string;
+  backoutPlan: string;
+  attestationSummary: string;
+  missingPrerequisites: string[];
+}
+
+export interface StarterTemplateBundle {
+  httprouteYaml: string;
+  terraformHcl: string;
+  originAllowlistTf: string;
+  cliOnboardCommand: string;
+  healthCheckStarterSnippet: string;
+}
+
+export interface OnboardingAssessment {
+  verdict: OnboardingVerdict;
+  recommendedPath: string;
+  plainEnglishSummary: string;
+  estimatedLeadTime: string;
+  canProceedToIngress: boolean;
+  blockerChecks: BlockerCheckItem[];
+  starterTemplates: StarterTemplateBundle;
+  serviceNowPrefill: ServiceNowPrefillPayload;
+  rolloutPreview: RolloutCompanionPlan;
+  poweredBy: "gemini" | "deterministic";
+  evaluatedAt: string;
+}
+
+export const TroubleshootingCategorySchema = z.enum([
+  "DNS",
+  "CERT",
+  "NETWORK",
+  "HEALTH_CHECK",
+  "WAF",
+  "POLICY",
+  "DRIFT",
+  "UNSUPPORTED",
+]);
+export type TroubleshootingCategory = z.infer<typeof TroubleshootingCategorySchema>;
+
+export interface TroubleshootingDiagnosis {
+  diagnosisId: string;
+  workflowId: string | null;
+  category: TroubleshootingCategory;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  title: string;
+  rootCause: string;
+  plainEnglishExplanation: string;
+  nextActions: string[];
+  suggestedPatch: {
+    backendPort?: number;
+    tlsProfile?: TlsProfile;
+    dnsRecordType?: DnsRecordType;
+    healthCheckPath?: string;
+    note?: string;
+  } | null;
+  poweredBy: "gemini" | "deterministic";
+  analyzedAt: string;
+}
+
+export interface RolloutMilestone {
+  stepId: "PROVISIONING" | "DNS_CUTOVER" | "WAF_LOG_TUNING" | "FALSE_POSITIVE_AUDIT" | "WAF_BLOCK_MODE";
+  title: string;
+  windowLabel: string;
+  status: "PENDING" | "ACTIVE" | "COMPLETED" | "EXEMPT";
+  guidance: string;
+  completedAt?: string;
+  completedBy?: string;
+}
+
+export interface RolloutCompanionPlan {
+  wafMode: "DETECT_LOG_ONLY" | "BLOCK_ENFORCED" | "EXEMPT_INTERNAL";
+  wafTuningWindowDays: number;
+  dnsCutoverMinutes: string;
+  blockModeGuardrail: string;
+  milestones: RolloutMilestone[];
 }

@@ -45,6 +45,21 @@ Traditional automation pipelines are rigid: every time leadership mandates a new
 * **Risk-Free Legacy Migration:** Progressive canary shifting with zero-LLM rollbacks under 60 seconds removes executive hesitation to migrate legacy services onto the centralized Ingress platform.
 * **Full Compliance Visibility:** Every agent handoff, policy result, and human signature is recorded in an append-only SHA-256 hash chain for effortless internal and external audits.
 
+### 4. Solving All 10 Real-World Ingress Adoption Blockers (With Security Guardrails)
+
+| # | Adoption Blocker | Live Agent Pattern & Action | Enforced Guardrail |
+| :--- | :--- | :--- | :--- |
+| **1** | Wrong pattern for internal apps | **Guided Onboarding Agent** routes internal-only apps to IP Filtering / Mesh | Advisory classification; internal mesh uses mTLS |
+| **2** | Narrow DNS eligibility | **`EligibilityPreflightAgent`** catches non-Infoblox DNS or bare `A` records | Blocks bare `A` records on external routes before apply |
+| **3** | Mandatory health-check endpoint | Pre-flight verifies `/healthz` & emits starter probe handler snippets | 4-vantage synthetic probe checks readiness post-apply |
+| **4** | Strict certificate readiness | **`TLSInspectorAgent`** validates TLS 1.2+/1.3, exact SAN, and full chain | Rejects wildcards & non-TLS 1.3 on external prod |
+| **5** | Origin Cloudflare IP allowlist | **`ChangePlanningAgent`** emits scoped Cloudflare CIDR firewall `.tf` | Never generates `0.0.0.0/0`; edge CIDRs only |
+| **6** | Ticket & admin access overhead | **Ticket Prefill Agent** drafts ServiceNow fields & missing-prereq summary | Automates prep only; **never** bypasses Four-Eyes RBAC |
+| **7** | 9-step validation-heavy PCAM UI | **Starter Config Assistant** generates HTTPRoute, WAF/rate-limit TF, & CLI | Deterministic SHA-256 plan digest verification |
+| **8** | Slow rollout & 7–21d WAF lag | **`RolloutCompanionAgent`** tracks 20–30m DNS & 7–21d WAF tuning milestones | Blocks skipping false-positive audit; forbids permanent WAF off |
+| **9** | Constrained APIM / DR / Private cases | `CTRL-USECASE-SCOPE` catches managed APIM, DR pools, Private Endpoints early | Prevents multi-day wasted tickets via instant redirection |
+| **10** | Multi-system operating complexity | Unified control plane + **`TroubleshootingAgent`** (`DNS`, `CERT`, `NETWORK`, `HEALTH_CHECK`, `WAF`, `POLICY`, `DRIFT`) | Strict `sa-ingress-readonly` isolation during planning |
+
 ---
 
 ## 1. System Architecture Diagram (Friendly Blueprint)

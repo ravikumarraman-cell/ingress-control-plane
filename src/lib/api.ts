@@ -2,13 +2,20 @@ import type {
   ActiveIngressRoute,
   ArchitectureDocPayload,
   AuditEvent,
+  ConstrainedUseCase,
   CreateDynamicAgentBlueprintInput,
   CustomPolicyRule,
+  DnsProvider,
+  DnsRecordType,
   DynamicAgentBlueprint,
   ExecutionMode,
+  OnboardingAssessment,
+  OnboardingAssessmentInput,
   OperatorIdentity,
   OutputFieldDefinition,
   ReadOnlyToolId,
+  RolloutMilestone,
+  TroubleshootingDiagnosis,
   ValidationGateResult,
   WorkflowHookStage,
   WorkflowPipelineConfig,
@@ -128,6 +135,12 @@ export type CreateWorkflowInput =
         exposure: "internal" | "external";
         tlsProfile: "tls_1_3_strict" | "tls_1_2_compat" | "mtls_internal";
         rawJustification: string;
+        dnsProvider?: DnsProvider;
+        dnsRecordType?: DnsRecordType;
+        healthCheckPath?: string;
+        originCertReady?: boolean;
+        cloudflareAllowlisted?: boolean;
+        useCaseFlags?: ConstrainedUseCase[];
       };
     };
 
@@ -399,6 +412,67 @@ export async function assignAgentToWorkflow(params: {
         adHocBlueprint: params.adHocBlueprint,
         saveToRoster: Boolean(params.saveToRoster),
       }),
+    }
+  );
+  return handleJson(res);
+}
+
+export async function assessOnboarding(
+  input: OnboardingAssessmentInput
+): Promise<{ assessment: OnboardingAssessment }> {
+  const res = await fetch("/api/v1/onboarding/assess", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(input),
+  });
+  return handleJson(res);
+}
+
+export async function troubleshootWorkflow(params: {
+  workflowId: string;
+  errorText?: string;
+  logs?: string;
+  configDiff?: string;
+}): Promise<{ diagnosis: TroubleshootingDiagnosis }> {
+  const res = await fetch(
+    `/api/v1/workflows/${encodeURIComponent(params.workflowId)}/troubleshoot`,
+    {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        errorText: params.errorText,
+        logs: params.logs,
+        configDiff: params.configDiff,
+      }),
+    }
+  );
+  return handleJson(res);
+}
+
+export async function troubleshootStandalone(params: {
+  errorText?: string;
+  logs?: string;
+  configDiff?: string;
+}): Promise<{ diagnosis: TroubleshootingDiagnosis }> {
+  const res = await fetch("/api/v1/troubleshoot", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(params),
+  });
+  return handleJson(res);
+}
+
+export async function updateRolloutStep(params: {
+  workflowId: string;
+  stepId: RolloutMilestone["stepId"];
+  status: "ACTIVE" | "COMPLETED";
+}): Promise<{ liveStateEtag: string; workflow: WorkflowRun }> {
+  const res = await fetch(
+    `/api/v1/workflows/${encodeURIComponent(params.workflowId)}/rollout-step`,
+    {
+      method: "PATCH",
+      headers: buildHeaders(),
+      body: JSON.stringify({ stepId: params.stepId, status: params.status }),
     }
   );
   return handleJson(res);

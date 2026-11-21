@@ -5,11 +5,15 @@ import dotenv from "dotenv";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import {
+  ConstrainedUseCaseSchema,
   CORE_AGENT_OUTPUT_FIELDS,
   CORE_AGENT_STAGE_MAP,
   CreateDynamicAgentBlueprintInputSchema,
+  DnsProviderSchema,
+  DnsRecordTypeSchema,
   ExecutionModeSchema,
   IngressRequestSchema,
+  OnboardingAssessmentInputSchema,
   READ_ONLY_TOOL_CATALOG,
   type WorkflowRun,
 } from "./src/shared/contracts.ts";
@@ -23,7 +27,12 @@ import {
   promoteCanaryStep,
   reviseWorkflowWithAgentFeedback,
   runValidationGates,
+  updateRolloutCompanionMilestone,
 } from "./server/agents.ts";
+import {
+  assessOnboardingAndPreflight,
+  diagnoseWorkflowFailure,
+} from "./server/adoptionAgents.ts";
 import { assertReadOnlyBlueprintSecurity } from "./server/dagEngine.ts";
 import { store, verifyAuditChain } from "./server/store.ts";
 
@@ -218,6 +227,12 @@ const CreateWorkflowBodySchema = z.discriminatedUnion("intakeMode", [
       exposure: z.enum(["internal", "external"]),
       tlsProfile: z.enum(["tls_1_3_strict", "tls_1_2_compat", "mtls_internal"]),
       rawJustification: z.string(),
+      dnsProvider: DnsProviderSchema.optional(),
+      dnsRecordType: DnsRecordTypeSchema.optional(),
+      healthCheckPath: z.string().max(120).optional(),
+      originCertReady: z.boolean().optional(),
+      cloudflareAllowlisted: z.boolean().optional(),
+      useCaseFlags: z.array(ConstrainedUseCaseSchema).optional(),
     }),
   }),
 ]);
@@ -696,6 +711,109 @@ app.post("/api/v1/workflows/:workflowId/assign-agent", async (req: Request, res:
       return;
     }
     const message = err instanceof Error ? err.message : "Failed to assign agent to workflow.";
+    const status = message.toLowerCase().includes("not found") ? 404 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+
+// Guided Onboarding, Pre-Flight Checker, Policy-Aware Starter Configs & Ticket Prefill
+app.post("/api/v1/onboarding/assess", async (req: Request, res: Response) => {
+  const parsed = OnboardingAssessmentInputSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({
+      error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+    });
+    return;
+  }
+  try {
+    const assessment = await assessOnboardingAndPreflight({
+      input: parsed.data,
+      existingRoutes: store.getState().routes,
+    });
+    res.json({ assessment });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Onboarding assessment failed.";
+    res.status(400).json({ error: message });
+  }
+});
+
+const TroubleshootBodySchema = z.object({
+  errorText: z.string().max(4000).optional(),
+  logs: z.string().max(4000).optional(),
+  configDiff: z.string().max(4000).optional(),
+});
+
+// TroubleshootingAgent for specific workflow
+app.post("/api/v1/workflows/:workflowId/troubleshoot", async (req: Request, res: Response) => {
+  const state = store.getState();
+  const workflow = state.workflows.find((w) => w.workflowId === req.params.workflowId);
+  if (!workflow) {
+    res.status(404).json({ error: "Workflow not found." });
+    return;
+  }
+  const parsed = TroubleshootBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  const diagnosis = await diagnoseWorkflowFailure({
+    workflow,
+    errorText: parsed.data.errorText,
+    logs: parsed.data.logs,
+    configDiff: parsed.data.configDiff,
+  });
+  res.json({ diagnosis });
+});
+
+// Standalone TroubleshootingAgent for pasted error/logs/diffs
+app.post("/api/v1/troubleshoot", async (req: Request, res: Response) => {
+  const parsed = TroubleshootBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  const diagnosis = await diagnoseWorkflowFailure({
+    workflow: null,
+    errorText: parsed.data.errorText,
+    logs: parsed.data.logs,
+    configDiff: parsed.data.configDiff,
+  });
+  res.json({ diagnosis });
+});
+
+const RolloutStepBodySchema = z.object({
+  stepId: z.enum([
+    "PROVISIONING",
+    "DNS_CUTOVER",
+    "WAF_LOG_TUNING",
+    "FALSE_POSITIVE_AUDIT",
+    "WAF_BLOCK_MODE",
+  ]),
+  status: z.enum(["ACTIVE", "COMPLETED"]),
+});
+
+// Rollout Companion Agent milestone tracker (DNS Cutover + 7-21d WAF Log -> Block)
+app.patch("/api/v1/workflows/:workflowId/rollout-step", (req: Request, res: Response) => {
+  const { operatorId } = getOperatorFromHeaders(req);
+  const parsed = RolloutStepBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  try {
+    const workflow = updateRolloutCompanionMilestone({
+      workflowId: req.params.workflowId,
+      stepId: parsed.data.stepId,
+      status: parsed.data.status,
+      actorId: operatorId,
+      onEvent: broadcastWorkflowEvent,
+    });
+    res.json({
+      liveStateEtag: store.getLiveEtag(),
+      workflow,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to update rollout milestone.";
     const status = message.toLowerCase().includes("not found") ? 404 : 400;
     res.status(status).json({ error: message });
   }

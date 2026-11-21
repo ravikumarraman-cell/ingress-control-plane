@@ -4,11 +4,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 import { createWorkflow, type CreateWorkflowInput } from "../lib/api";
 import type {
+  ConstrainedUseCase,
   CustomAgentSpec,
+  DnsProvider,
+  DnsRecordType,
   ExecutionMode,
   HitlPolicyMode,
 } from "../shared/contracts";
 import { SegmentedTabs } from "./ui/SegmentedTabs";
+import { OnboardingCopilotPanel } from "./workflows/OnboardingCopilotPanel";
 
 export function NewIngressModal({
   open,
@@ -20,7 +24,7 @@ export function NewIngressModal({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const [intakeMode, setIntakeMode] = useState<"structured" | "ai">("structured");
+  const [intakeMode, setIntakeMode] = useState<"structured" | "ai" | "guided">("structured");
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("gitops_pr_v2");
   const [ticketRef, setTicketRef] = useState("NET-4902");
   const [naturalPrompt, setNaturalPrompt] = useState(
@@ -41,6 +45,14 @@ export function NewIngressModal({
   const [justification, setJustification] = useState(
     "Production ingress onboarding for billing-api with WAF and TLS 1.3 strict profile."
   );
+
+  // Pre-Flight Eligibility Metadata (Top-10 Adoption Blockers)
+  const [dnsProvider, setDnsProvider] = useState<DnsProvider>("infoblox");
+  const [dnsRecordType, setDnsRecordType] = useState<DnsRecordType>("cname");
+  const [healthCheckPath, setHealthCheckPath] = useState("/healthz");
+  const [originCertReady, setOriginCertReady] = useState(true);
+  const [cloudflareAllowlisted, setCloudflareAllowlisted] = useState(true);
+  const [useCaseFlags, setUseCaseFlags] = useState<ConstrainedUseCase[]>([]);
 
   // Flexible Agent Pipeline Controls
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -186,6 +198,12 @@ export function NewIngressModal({
           exposure,
           tlsProfile,
           rawJustification: justification.trim(),
+          dnsProvider,
+          dnsRecordType,
+          healthCheckPath: healthCheckPath.trim() || "/healthz",
+          originCertReady,
+          cloudflareAllowlisted,
+          useCaseFlags,
         },
       });
     }
@@ -258,6 +276,7 @@ export function NewIngressModal({
                 value={intakeMode}
                 onChange={setIntakeMode}
                 items={[
+                  { id: "guided", label: "Guided Pre-Flight" },
                   { id: "structured", label: "Structured Schema" },
                   { id: "ai", label: "Natural Language (Gemini)" },
                 ]}
@@ -284,7 +303,39 @@ export function NewIngressModal({
             </div>
           </div>
 
-          {intakeMode === "ai" ? (
+          {intakeMode === "guided" ? (
+            <OnboardingCopilotPanel
+              initialValues={{
+                appName,
+                environment,
+                hostname,
+                pathPrefix,
+                backendService,
+                backendPort: Number(backendPort) || 8443,
+                exposure,
+                tlsProfile,
+                ticketRef,
+              }}
+              onApplyToRequest={(vals) => {
+                setAppName(vals.appName);
+                setEnvironment(vals.environment);
+                setHostname(vals.hostname);
+                setPathPrefix(vals.pathPrefix);
+                setBackendService(vals.backendService);
+                setBackendPort(String(vals.backendPort));
+                setExposure(vals.exposure);
+                setTlsProfile(vals.tlsProfile);
+                setTicketRef(vals.ticketRef);
+                setDnsProvider(vals.dnsProvider);
+                setDnsRecordType(vals.dnsRecordType);
+                setHealthCheckPath(vals.healthCheckPath);
+                setOriginCertReady(vals.originCertReady);
+                setCloudflareAllowlisted(vals.cloudflareAllowlisted);
+                setUseCaseFlags(vals.useCaseFlags);
+                setIntakeMode("structured");
+              }}
+            />
+          ) : intakeMode === "ai" ? (
             <div className="space-y-4">
               <div>
                 <label
@@ -659,13 +710,15 @@ export function NewIngressModal({
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={mutation.isPending}
-              className="px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 transition-colors whitespace-nowrap"
-            >
-              {mutation.isPending ? "Running Analysis..." : "Submit Request"}
-            </button>
+            {intakeMode !== "guided" && (
+              <button
+                type="submit"
+                disabled={mutation.isPending}
+                className="px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 transition-colors whitespace-nowrap"
+              >
+                {mutation.isPending ? "Running Analysis..." : "Submit Request"}
+              </button>
+            )}
           </div>
         </form>
       </div>

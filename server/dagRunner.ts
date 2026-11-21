@@ -105,10 +105,77 @@ export function synthesizeDeterministicAgentOutput(params: {
   const { blueprint, request, consumedInputs } = params;
   const data: Record<string, unknown> = {};
 
-  if (blueprint.name === "TLSInspectorAgent") {
+  if (blueprint.name === "EligibilityPreflightAgent") {
+    const dnsProvider = request.dnsProvider ?? "infoblox";
+    const dnsRecordType = request.dnsRecordType ?? "cname";
+    const healthCheckPath = request.healthCheckPath ?? "/healthz";
+    const originCertReady = request.originCertReady ?? true;
+    const cloudflareAllowlisted = request.cloudflareAllowlisted ?? true;
+    const useCaseFlags = request.useCaseFlags ?? [];
+
+    const dnsEligible =
+      dnsProvider !== "external_other" &&
+      (request.exposure === "internal" || dnsRecordType !== "a_record");
+    const healthCheckReady =
+      healthCheckPath.startsWith("/") &&
+      healthCheckPath.length >= 2 &&
+      healthCheckPath.toLowerCase() !== "/none";
+    const unsupportedFlags = useCaseFlags;
+    const allClear =
+      dnsEligible &&
+      healthCheckReady &&
+      originCertReady &&
+      (request.exposure === "internal" || cloudflareAllowlisted) &&
+      unsupportedFlags.length === 0;
+
+    data.eligible = allClear;
+    data.dnsEligible = dnsEligible;
+    data.healthCheckPath = healthCheckPath;
+    data.cloudflareAllowlisted = cloudflareAllowlisted;
+    data.unsupportedFlags = unsupportedFlags;
+    data.recommendedPattern =
+      unsupportedFlags.length > 0
+        ? `UNSUPPORTED:${unsupportedFlags.join(",")}`
+        : request.exposure === "internal"
+          ? "INTERNAL_MESH_OR_IP_FILTERING"
+          : "STANDARD_EDGE_INGRESS";
+
+    const hasBlocker =
+      !dnsEligible || !healthCheckReady || !originCertReady || unsupportedFlags.length > 0;
+    return {
+      summary: hasBlocker
+        ? `EligibilityPreflightAgent flagged pre-flight blocker(s) for ${request.hostname}: dnsEligible=${dnsEligible}, healthCheck=${healthCheckReady}, originCert=${originCertReady}, constrained=${unsupportedFlags.join(",") || "none"}.`
+        : `EligibilityPreflightAgent verified Infoblox/${dnsRecordType}, ${healthCheckPath}, origin TLS, and Cloudflare allowlist readiness.`,
+      data,
+      riskDelta: hasBlocker ? "ELEVATE_HIGH" : !cloudflareAllowlisted ? "ELEVATE_MEDIUM" : "NONE",
+      vetoTriggered: hasBlocker,
+      confidence: 0.98,
+    };
+  } else if (blueprint.name === "RolloutCompanionAgent") {
+    const isExternal = request.exposure === "external";
+    data.dnsCutoverWindow = "20-30 min";
+    data.wafTuningDays = isExternal ? (request.environment === "prod" ? 14 : 7) : 0;
+    data.targetWafMode = isExternal ? "DETECT_7_TO_21D_THEN_BLOCK" : "EXEMPT_INTERNAL";
+    data.checklist = isExternal
+      ? [
+          "Verify 20-30 min Infoblox CNAME propagation",
+          "Run WAF in Log/Detect mode (7-21 days)",
+          "Audit false positives before mandatory Block Mode cutover",
+        ]
+      : ["Verify internal Infoblox CNAME & mTLS mesh health check"];
+    return {
+      summary: isExternal
+        ? `RolloutCompanionAgent scheduled 20-30m DNS cutover and ${data.wafTuningDays}-day bounded WAF Detect-to-Block plan.`
+        : `RolloutCompanionAgent prepared internal mesh cutover checklist (WAF exempt).`,
+      data,
+      riskDelta: "NONE",
+      vetoTriggered: false,
+      confidence: 0.96,
+    };
+  } else if (blueprint.name === "TLSInspectorAgent") {
     data.minTlsVersion = request.tlsProfile === "tls_1_3_strict" ? "TLSv1.3" : "TLSv1.2";
     data.expiringWithinDays = request.environment === "prod" ? 42 : 78;
-    data.sanCoverageOk = !request.hostname.includes("*");
+    data.sanCoverageOk = !request.hostname.includes("*") && (request.originCertReady ?? true);
     data.sanList = [request.hostname];
   } else if (blueprint.name === "CanaryWeightPlannerAgent") {
     const impact = consumedInputs.ImpactAgent as AgentStructuredOutput | undefined;

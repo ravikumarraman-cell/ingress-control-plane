@@ -126,6 +126,79 @@ const ADOPTION_PILLARS = [
   },
 ] as const;
 
+const TOP_10_BLOCKER_MATRIX = [
+  {
+    id: 1,
+    blocker: "Wrong Pattern (Internal vs. External)",
+    agentSolution:
+      "Guided Onboarding Agent detects internal-only workloads and advises IP Filtering / Private Mesh instead of public Edge WAF.",
+    guardrail: "Advisory guidance only; internal mesh uses mTLS isolation.",
+  },
+  {
+    id: 2,
+    blocker: "Narrow DNS Eligibility (Infoblox + CNAME)",
+    agentSolution:
+      "EligibilityPreflightAgent & CTRL-DNS-ELIGIBILITY catch external DNS zones or bare A records before a change ticket is submitted.",
+    guardrail: "Blocks bare A records on external routes before apply.",
+  },
+  {
+    id: 3,
+    blocker: "Mandatory Health-Check Endpoint",
+    agentSolution:
+      "Pre-flight validates readiness path (/healthz) and generates copyable probe + handler starter snippets for legacy apps.",
+    guardrail: "Synthetic 4-vantage probes verify origin health on apply.",
+  },
+  {
+    id: 4,
+    blocker: "Strict Origin & Edge Certificate Readiness",
+    agentSolution:
+      "TLSInspectorAgent checks SAN exact-FQDN coverage, TLS 1.2+/1.3 strict compliance, chain completeness, and expiry.",
+    guardrail: "Blocks wildcard hostnames and TLS 1.2 on external prod.",
+  },
+  {
+    id: 5,
+    blocker: "Cloudflare Edge IP Allowlisting",
+    agentSolution:
+      "ChangePlanningAgent auto-synthesizes scoped Cloudflare CIDR firewall Terraform alongside HTTPRoute manifests.",
+    guardrail: "Never opens 0.0.0.0/0; scopes strictly to edge CIDRs.",
+  },
+  {
+    id: 6,
+    blocker: "High Ticket & Admin Access Overhead",
+    agentSolution:
+      "Ticket Prefill Agent generates ServiceNow description, implementation, backout, and evidence fields automatically.",
+    guardrail: "Automates prep only; never bypasses Four-Eyes RBAC.",
+  },
+  {
+    id: 7,
+    blocker: "9-Step Validation-Heavy PCAM UI",
+    agentSolution:
+      "Policy-Aware Starter Templates collapse hostname lookup, pools, steering, rate limiting, and fail-open into one form.",
+    guardrail: "Deterministic SHA-256 plan digest verification.",
+  },
+  {
+    id: 8,
+    blocker: "Slow Provisioning & 7–21d WAF Lag",
+    agentSolution:
+      "RolloutCompanionAgent tracks 20–30m Infoblox DNS cutover, bounded 7–21 day WAF Detect tuning, and false-positive audits.",
+    guardrail: "Blocks WAF Block Mode skip; forbids permanent WAF off.",
+  },
+  {
+    id: 9,
+    blocker: "Unsupported Cases (APIM, DR Pool, Private)",
+    agentSolution:
+      "Guided Onboarding flags managed APIM, DR pools, and Private Endpoints in seconds with exact architectural alternatives.",
+    guardrail: "CTRL-USECASE-SCOPE prevents late-stage failed tickets.",
+  },
+  {
+    id: 10,
+    blocker: "Cross-System Operating Model",
+    agentSolution:
+      "Single-pane orchestration bridges PRM, ServiceNow, Infoblox, Cloudflare, origin certs, Terraform/CLI, and audit proofs.",
+    guardrail: "Read-only agents (sa-ingress-readonly) isolate plan from write.",
+  },
+] as const;
+
 export interface LeadershipOverviewSectionProps {
   adoptionMermaid?: string;
 }
@@ -344,6 +417,40 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Top 10 Adoption Blockers Addressed */}
+      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200">
+          <h3 className="text-sm font-semibold text-slate-900">
+            Top 10 Ingress Adoption Blockers — Solved by Live Control-Plane Agents
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Every blocker is addressed before ticket submission, during multi-step setup, and throughout post-apply rollout with strict security guardrails.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
+                <th className="px-4 py-2.5 w-10">#</th>
+                <th className="px-4 py-2.5 w-56">Adoption Blocker</th>
+                <th className="px-4 py-2.5">Agent Solution</th>
+                <th className="px-4 py-2.5 w-60">Security & Governance Guardrail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 text-xs">
+              {TOP_10_BLOCKER_MATRIX.map((row) => (
+                <tr key={row.id}>
+                  <td className="px-4 py-2.5 font-mono text-slate-500 tabular-nums">{row.id}</td>
+                  <td className="px-4 py-2.5 font-semibold text-slate-900">{row.blocker}</td>
+                  <td className="px-4 py-2.5 text-slate-700 leading-relaxed">{row.agentSolution}</td>
+                  <td className="px-4 py-2.5 font-mono text-[11px] text-slate-600">{row.guardrail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

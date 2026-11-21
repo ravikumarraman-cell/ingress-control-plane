@@ -43,9 +43,15 @@ import {
 } from "./store.ts";
 import type {
   CustomPolicyRule,
+  RolloutMilestone,
   ValidationGateResult,
   WorkflowPipelineConfig,
 } from "../src/shared/contracts.ts";
+import {
+  buildRolloutCompanionPlan,
+  detectConstrainedUseCasesFromText,
+  renderOriginAllowlistTerraform,
+} from "./adoptionAgents.ts";
 
 export {
   DagValidationError,
@@ -273,6 +279,95 @@ function evaluatePolicies(
       : "Wildcard certificates are prohibited.",
   });
   if (!nonWildcard) violations.push("CTRL-CERT-NONWILDCARD: Wildcard hostnames prohibited.");
+
+  // Control 5: Constrained / Unsupported Use Case Guardrail (Blocker #9)
+  const constrainedDetected = Array.from(
+    new Set([
+      ...(req.useCaseFlags ?? []),
+      ...detectConstrainedUseCasesFromText(req.rawJustification),
+    ])
+  );
+  const useCasePass = constrainedDetected.length === 0;
+  checks.push({
+    controlId: "CTRL-USECASE-SCOPE",
+    controlName: "Supported Ingress Workload Scope (APIM / DR / Private Endpoint)",
+    passed: useCasePass,
+    severity: "BLOCK",
+    detail: useCasePass
+      ? "Standard HTTP/HTTPS workload eligible for Edge/Mesh Ingress."
+      : `Unsupported ingress use case (${constrainedDetected.join(", ")}): use native APIM, regional GSLB DR, or PrivateLink instead.`,
+  });
+  if (!useCasePass) {
+    violations.push(
+      `CTRL-USECASE-SCOPE: Constrained pattern (${constrainedDetected.join(", ")}) cannot use standard Edge Ingress.`
+    );
+  }
+
+  // Control 6: Infoblox / Cloud Native DNS Delegation + CNAME Eligibility (Blocker #2)
+  const dnsProvider = req.dnsProvider ?? "infoblox";
+  const dnsRecordType = req.dnsRecordType ?? "cname";
+  const dnsPass =
+    dnsProvider !== "external_other" && (req.exposure === "internal" || dnsRecordType !== "a_record");
+  checks.push({
+    controlId: "CTRL-DNS-ELIGIBILITY",
+    controlName: "DNS Infoblox Delegation & CNAME Eligibility",
+    passed: dnsPass,
+    severity: "BLOCK",
+    detail: dnsPass
+      ? `DNS posture (${dnsProvider} / ${dnsRecordType}) satisfies edge steering requirements.`
+      : dnsProvider === "external_other"
+        ? "External non-delegated DNS unsupported; delegate subdomain from Infoblox to Cloud Native DNS."
+        : "External routes cannot onboard with a bare A record; convert DNS entry to CNAME.",
+  });
+  if (!dnsPass) {
+    violations.push(
+      `CTRL-DNS-ELIGIBILITY: ${dnsProvider === "external_other" ? "Infoblox delegation required" : "CNAME required instead of bare A record"}.`
+    );
+  }
+
+  // Control 7: Mandatory Origin Health-Check Endpoint (Blocker #3)
+  const hcPath = (req.healthCheckPath ?? "/healthz").trim();
+  const hcPass = hcPath.startsWith("/") && hcPath.length >= 2 && hcPath.toLowerCase() !== "/none";
+  checks.push({
+    controlId: "CTRL-HEALTHCHECK-PROBE",
+    controlName: "Mandatory Origin Health-Check Probe",
+    passed: hcPass,
+    severity: "BLOCK",
+    detail: hcPass
+      ? `Origin readiness probe verified at ${hcPath} on port ${req.backendPort}.`
+      : "Origin service must expose an HTTP health-check endpoint (e.g. /healthz).",
+  });
+  if (!hcPass) {
+    violations.push("CTRL-HEALTHCHECK-PROBE: Missing valid HTTP health-check endpoint path.");
+  }
+
+  // Control 8: Origin Certificate Chain & Cloudflare IP Allowlisting (Blockers #4 & #5)
+  const originCertReady = req.originCertReady ?? true;
+  const cfAllowlisted = req.cloudflareAllowlisted ?? true;
+  const originReadyPass =
+    originCertReady && (req.exposure === "internal" || req.environment !== "prod" || cfAllowlisted);
+  checks.push({
+    controlId: "CTRL-ORIGIN-ALLOWLIST",
+    controlName: "Origin TLS Chain & Cloudflare Edge IP Allowlist",
+    passed: originCertReady && (req.exposure === "internal" || cfAllowlisted),
+    severity: !originCertReady || (req.environment === "prod" && req.exposure === "external")
+      ? "BLOCK"
+      : "WARN",
+    detail: !originCertReady
+      ? "Origin TLS 1.2+ certificate with full intermediate chain & SAN must be ready prior to apply."
+      : req.exposure === "internal"
+        ? "Internal mesh route; Cloudflare edge IP allowlist not required."
+        : cfAllowlisted
+          ? "Origin firewall allows documented Cloudflare edge CIDR ranges."
+          : "Origin firewall has not allowlisted Cloudflare edge IP ranges (apply generated allowlist Terraform).",
+  });
+  if (!originReadyPass) {
+    violations.push(
+      !originCertReady
+        ? "CTRL-ORIGIN-ALLOWLIST: Origin TLS 1.2+ certificate + SAN/chain incomplete."
+        : "CTRL-ORIGIN-ALLOWLIST: Production external origin must allowlist Cloudflare edge IP ranges."
+    );
+  }
 
   // Dynamic Custom Policy Rules
   for (const rule of customRules) {
@@ -683,9 +778,17 @@ async function buildPlanAndTraces(params: {
     "}",
   ].join("\n");
 
+  const allowlistPath = `terraform/${params.request.environment}/${params.request.appName}-origin-allowlist.tf`;
+  const allowlistHcl = renderOriginAllowlistTerraform({
+    appName: params.request.appName,
+    environment: params.request.environment,
+    backendPort: params.request.backendPort,
+  });
+
   const artifacts: Record<string, string> = {
     [yamlPath]: afterYaml,
     [hclPath]: hclContent,
+    ...(params.request.exposure === "external" ? { [allowlistPath]: allowlistHcl } : {}),
   };
 
   const rollbackArtifacts: Record<string, string> = collidingRoute
@@ -697,6 +800,15 @@ async function buildPlanAndTraces(params: {
   const planDigest = computePlanDigest(liveEtag, artifacts, rollbackArtifacts);
   const dryRunPassed = violations.length === 0 && !dynamicVetoed;
 
+  const diffs = [
+    computeUnifiedDiff(yamlPath, "HTTPRoute", beforeYaml, afterYaml),
+    computeUnifiedDiff(hclPath, "ManagedSSLCertificate", "", hclContent),
+  ];
+  if (params.request.exposure === "external") {
+    diffs.push(computeUnifiedDiff(allowlistPath, "CloudflareOriginFirewall", "", allowlistHcl));
+  }
+
+  const healthPath = params.request.healthCheckPath?.trim() || "/healthz";
   const planId = crypto.randomUUID();
   const changePlan: ChangePlan = {
     planId,
@@ -708,10 +820,7 @@ async function buildPlanAndTraces(params: {
       ? [...violations, "Dynamic agent veto triggered escalation to SupervisorAgent"]
       : violations,
     artifacts,
-    diffs: [
-      computeUnifiedDiff(yamlPath, "HTTPRoute", beforeYaml, afterYaml),
-      computeUnifiedDiff(hclPath, "ManagedSSLCertificate", "", hclContent),
-    ],
+    diffs,
     dryRunPassed,
     rollbackPlan: {
       rollbackId: crypto.randomUUID(),
@@ -724,7 +833,7 @@ async function buildPlanAndTraces(params: {
       precomputedArtifacts: rollbackArtifacts,
       verificationProbes: [
         `https://${params.request.hostname}${params.request.pathPrefix} (TLS ${params.request.tlsProfile})`,
-        `Backend ${params.request.backendService}:${params.request.backendPort} readiness`,
+        `Backend ${params.request.backendService}:${params.request.backendPort}${healthPath} readiness`,
       ],
       maxRollbackSeconds: 45,
     },
@@ -1039,6 +1148,10 @@ export async function createAndPlanWorkflow(params: {
     approvalDecision: null,
     gitopsPrUrl: null,
     probeResult: null,
+    rolloutCompanion: buildRolloutCompanionPlan({
+      request: params.request,
+      status: built.status,
+    }),
     createdAt: now,
     updatedAt: now,
   };
@@ -1281,6 +1394,10 @@ export async function reviseWorkflowWithAgentFeedback(params: {
   workflow.errorMessage = null;
   workflow.probeResult = null;
   workflow.status = built.status;
+  workflow.rolloutCompanion = buildRolloutCompanionPlan({
+    request: nextRequest,
+    status: built.status,
+  });
   workflow.updatedAt = new Date().toISOString();
 
   appendAuditEventInMemory(state, {
@@ -1699,6 +1816,10 @@ export function processApprovalAndExecute(params: {
   }
 
   workflow.status = "COMPLETED";
+  workflow.rolloutCompanion = buildRolloutCompanionPlan({
+    request: req,
+    status: "COMPLETED",
+  });
   workflow.canaryState = {
     steps: [100],
     stageIndex: 0,
@@ -1900,6 +2021,66 @@ export function executeManualRollback(params: {
 
   store.commit();
   params.onEvent("ROLLED_BACK", workflow);
+  return workflow;
+}
+
+export function updateRolloutCompanionMilestone(params: {
+  workflowId: string;
+  stepId: RolloutMilestone["stepId"];
+  status: "COMPLETED" | "ACTIVE";
+  actorId: string;
+  onEvent: (eventType: string, workflow: WorkflowRun) => void;
+}): WorkflowRun {
+  const state = store.getState();
+  const workflow = state.workflows.find((w) => w.workflowId === params.workflowId);
+  if (!workflow) {
+    throw new Error("Workflow not found.");
+  }
+  const now = new Date().toISOString();
+  const companion = buildRolloutCompanionPlan({
+    request: workflow.ingressRequest,
+    status: workflow.status,
+    existing: workflow.rolloutCompanion,
+  });
+
+  // Security Guardrail: cannot promote WAF to Block Mode before completing false-positive audit
+  if (params.stepId === "WAF_BLOCK_MODE" && params.status === "COMPLETED") {
+    const fpAudit = companion.milestones.find((m) => m.stepId === "FALSE_POSITIVE_AUDIT");
+    if (fpAudit && fpAudit.status !== "COMPLETED" && fpAudit.status !== "EXEMPT") {
+      throw new Error(
+        "WAF Rollout Guardrail: Complete 'WAF Dashboard & False-Positive Audit' before activating WAF Block Mode."
+      );
+    }
+    companion.wafMode = "BLOCK_ENFORCED";
+  }
+
+  companion.milestones = companion.milestones.map((m) => {
+    if (m.stepId !== params.stepId) return m;
+    return {
+      ...m,
+      status: m.status === "EXEMPT" ? "EXEMPT" : params.status,
+      completedAt: params.status === "COMPLETED" ? now : undefined,
+      completedBy: params.status === "COMPLETED" ? params.actorId : undefined,
+    };
+  });
+
+  workflow.rolloutCompanion = companion;
+  workflow.updatedAt = now;
+
+  store.addAuditEvent({
+    workflowId: workflow.workflowId,
+    actorId: params.actorId,
+    actorType: "HUMAN",
+    eventType: "ROLLOUT_MILESTONE_UPDATED",
+    payload: {
+      stepId: params.stepId,
+      status: params.status,
+      wafMode: companion.wafMode,
+    },
+  });
+
+  store.commit();
+  params.onEvent(workflow.status, workflow);
   return workflow;
 }
 
