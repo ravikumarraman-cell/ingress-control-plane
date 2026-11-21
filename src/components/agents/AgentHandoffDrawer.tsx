@@ -6,6 +6,7 @@ import type {
   DynamicTaskAssignment,
   WorkflowHookStage,
 } from "../../shared/contracts";
+import { CodeViewer } from "../ui/CodeViewer";
 
 export interface AgentHandoffInspectorTarget {
   agentName: string;
@@ -154,7 +155,8 @@ export function AgentHandoffDrawer({
             </p>
             {assignment?.auditEventHash && (
               <div className="text-[11px] font-mono text-slate-500 tabular-nums break-all">
-                Audit Event SHA-256: <span className="text-slate-800">{assignment.auditEventHash}</span>
+                Audit Event SHA-256:{" "}
+                <span className="text-slate-800">{assignment.auditEventHash}</span>
               </div>
             )}
           </div>
@@ -166,7 +168,8 @@ export function AgentHandoffDrawer({
             </div>
             {dependsOn.length === 0 ? (
               <p className="text-slate-500">
-                Root stage task — receives workflow Intake parameters directly without waiting on upstream dependencies.
+                Root stage task — receives workflow Intake parameters directly without waiting on
+                upstream dependencies.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -185,19 +188,23 @@ export function AgentHandoffDrawer({
           </div>
 
           {/* Consumed Upstream Inputs */}
-          <div className="space-y-1.5">
-            <div className="font-semibold text-slate-900">Consumed Upstream Inputs</div>
-            <pre className="p-3.5 bg-slate-950 text-slate-100 rounded-lg font-mono text-[11px] overflow-x-auto leading-relaxed">
-              {Object.keys(consumedInputs).length > 0
+          <CodeViewer
+            title="Consumed Upstream Inputs"
+            code={
+              Object.keys(consumedInputs).length > 0
                 ? JSON.stringify(consumedInputs, null, 2)
-                : "// No upstream fields injected into prompt"}
-            </pre>
-          </div>
+                : "// No upstream fields injected into prompt"
+            }
+            copyLabel="Copy Inputs"
+            maxHeightClass="max-h-56"
+          />
 
           {/* Resolved Prompt */}
           {assignment?.resolvedTaskPrompt && (
             <div className="space-y-1.5">
-              <div className="font-semibold text-slate-900">Resolved Prompt (Post-Interpolation)</div>
+              <div className="font-semibold text-slate-900">
+                Resolved Prompt (Post-Interpolation)
+              </div>
               <pre className="p-3.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-lg font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
                 {assignment.resolvedTaskPrompt}
               </pre>
@@ -205,14 +212,17 @@ export function AgentHandoffDrawer({
           )}
 
           {/* Produced Structured Output */}
-          <div className="space-y-1.5">
-            <div className="font-semibold text-slate-900">Produced Structured Output</div>
-            <pre className="p-3.5 bg-slate-950 text-emerald-300 rounded-lg font-mono text-[11px] overflow-x-auto leading-relaxed">
-              {output
+          <CodeViewer
+            title="Produced Structured Output"
+            code={
+              output
                 ? JSON.stringify(output, null, 2)
-                : "// Structured output pending or skipped"}
-            </pre>
-          </div>
+                : "// Structured output pending or skipped"
+            }
+            copyLabel="Copy Output"
+            accentTextClass="text-emerald-300"
+            maxHeightClass="max-h-64"
+          />
         </div>
       </div>
     </div>

@@ -542,6 +542,7 @@ export interface ArchitectureDocPayload {
   markdown: string;
   flowchartMermaid: string;
   sequenceMermaid: string;
+  adoptionMermaid?: string;
   implementationPlanPath: string;
   implementationPlanMarkdown: string;
   implementationProgressPath: string;

@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Search, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { AuditLogTable } from "../components/AuditLogTable";
+import { PageHeader } from "../components/ui/PageHeader";
+import { SearchFilterBar } from "../components/ui/SearchFilterBar";
+import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import { fetchAuditLog, verifyAuditLog } from "../lib/api";
 
 export function AuditLogPage() {
@@ -17,9 +20,10 @@ export function AuditLogPage() {
     mutationFn: verifyAuditLog,
   });
 
+  const allEvents = auditQuery.data?.events ?? [];
+
   const filteredEvents = useMemo(() => {
-    const events = auditQuery.data?.events ?? [];
-    return events.filter((ev) => {
+    return allEvents.filter((ev) => {
       if (actorFilter !== "ALL" && ev.actorType !== actorFilter) return false;
       if (search.trim()) {
         const q = search.toLowerCase();
@@ -32,96 +36,89 @@ export function AuditLogPage() {
       }
       return true;
     });
-  }, [auditQuery.data, actorFilter, search]);
+  }, [allEvents, actorFilter, search]);
+
+  const hasActiveFilters = actorFilter !== "ALL" || search.trim().length > 0;
+  const clearFilters = () => {
+    setActorFilter("ALL");
+    setSearch("");
+  };
 
   const chainResult = verifyMutation.data ?? auditQuery.data?.verification;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">
-            Immutable Governance Audit Log
-          </h1>
-          <p className="text-sm text-slate-600 mt-0.5">
-            Append-only SHA-256 hash-chained ledger recording every intake, HITL signature, drift
-            check, and rollback.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {chainResult && (
-            <div
-              className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border ${
-                chainResult.valid
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                  : "bg-red-50 border-red-200 text-red-800"
-              }`}
+      <PageHeader
+        title="Immutable Governance Audit Log"
+        subtitle="Append-only SHA-256 hash-chained ledger recording every intake, HITL signature, drift check, and rollback."
+        actions={
+          <>
+            {chainResult && (
+              <div
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border ${
+                  chainResult.valid
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    : "bg-red-50 border-red-200 text-red-800"
+                }`}
+              >
+                {chainResult.valid ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                ) : (
+                  <ShieldAlert className="h-3.5 w-3.5 text-red-700" />
+                )}
+                <span className="tabular-nums">
+                  {chainResult.valid
+                    ? `Chain Verified (${chainResult.checkedCount} events)`
+                    : `Broken at seq #${chainResult.brokenAtSeq}`}
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => verifyMutation.mutate()}
+              disabled={verifyMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap transition-colors"
             >
-              {chainResult.valid ? (
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
-              ) : (
-                <ShieldAlert className="h-3.5 w-3.5 text-red-700" />
-              )}
-              <span className="tabular-nums">
-                {chainResult.valid
-                  ? `Chain Verified (${chainResult.checkedCount} events)`
-                  : `Broken at seq #${chainResult.brokenAtSeq}`}
-              </span>
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => verifyMutation.mutate()}
-            disabled={verifyMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
-          >
-            <ShieldCheck className="h-3.5 w-3.5" />
-            Verify Hash Chain
-          </button>
-        </div>
-      </div>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Verify Hash Chain
+            </button>
+          </>
+        }
+      />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded-lg w-fit">
-          {(["ALL", "HUMAN", "AGENT", "SYSTEM"] as const).map((actor) => (
-            <button
-              key={actor}
-              type="button"
-              onClick={() => setActorFilter(actor)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                actorFilter === actor
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {actor === "ALL" ? "All Actors" : actor}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          ariaLabel="Filter audit events by actor type"
+          value={actorFilter}
+          onChange={setActorFilter}
+          items={[
+            { id: "ALL", label: "All Actors" },
+            { id: "HUMAN", label: "HUMAN" },
+            { id: "AGENT", label: "AGENT" },
+            { id: "SYSTEM", label: "SYSTEM" },
+          ]}
+        />
 
-        <div className="relative w-full sm:w-72">
-          <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search event type, actor, payload..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
-          />
-        </div>
+        <SearchFilterBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search event type, actor, payload..."
+          filteredCount={filteredEvents.length}
+          totalCount={allEvents.length}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={clearFilters}
+          itemLabel="events"
+          className="sm:w-auto"
+        />
       </div>
 
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        {auditQuery.isLoading ? (
-          <div className="p-6 space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 bg-slate-100 rounded animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <AuditLogTable events={filteredEvents} />
-        )}
+        <AuditLogTable
+          events={filteredEvents}
+          isLoading={auditQuery.isLoading}
+          hasActiveFilters={hasActiveFilters}
+          onClearFilters={clearFilters}
+        />
       </div>
     </div>
   );

@@ -1,15 +1,12 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import {
-  createColumnHelper,
-  flexRender,
-  tableFeatures,
-  useTable,
-} from "@tanstack/react-table";
+import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-table";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { BlastRadiusText } from "../components/StatusLabel";
 import { ApprovalModal } from "../components/ui/ApprovalModal";
+import { DataTable } from "../components/ui/DataTable";
+import { PageHeader } from "../components/ui/PageHeader";
 import { WorkflowStatusIndicator } from "../components/WorkflowStatusIndicator";
 import { fetchWorkflows, submitWorkflowDecision } from "../lib/api";
 import type { WorkflowRun } from "../shared/contracts";
@@ -126,14 +123,14 @@ export function ApprovalsPage() {
                   decisionMutation.reset();
                   setSelectedWorkflow(info.row.original);
                 }}
-                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 whitespace-nowrap"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 whitespace-nowrap transition-colors"
               >
                 Review & Sign
               </button>
               <Link
                 to="/workflows/$workflowId"
                 params={{ workflowId: info.row.original.workflowId }}
-                className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+                className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap transition-colors"
               >
                 Details
               </Link>
@@ -145,67 +142,26 @@ export function ApprovalsPage() {
   );
 
   const table = useTable({
-    features: features,
+    features,
     data: pendingApprovals,
     columns,
   });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">
-          Human-in-the-Loop Approval Inbox
-        </h1>
-        <p className="text-sm text-slate-600 mt-0.5">
-          Workflows halted at the ADK state interrupt requiring signed four-eyes RBAC approval prior to ExecutionAgent unlock.
-        </p>
-      </div>
+      <PageHeader
+        title="Human-in-the-Loop Approval Inbox"
+        subtitle="Workflows halted at the ADK state interrupt requiring signed four-eyes RBAC approval prior to ExecutionAgent unlock."
+      />
 
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        {wfQuery.isLoading ? (
-          <div className="p-6 space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="h-12 bg-slate-100 rounded animate-pulse" />
-            ))}
-          </div>
-        ) : pendingApprovals.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-sm font-medium text-slate-900">Approval queue is clear</p>
-            <p className="text-xs text-slate-500 mt-1">
-              No workflows are currently paused at the HITL approval gate.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
-                    {hg.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        className="px-4 py-2.5 text-xs font-semibold text-slate-600 whitespace-nowrap"
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-sm">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-middle">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          table={table}
+          isLoading={wfQuery.isLoading}
+          skeletonRows={2}
+          emptyTitle="Approval queue is clear"
+          emptyDescription="No workflows are currently paused at the HITL approval gate."
+        />
       </div>
 
       {selectedWorkflow && (

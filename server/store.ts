@@ -933,6 +933,7 @@ class ControlPlaneStore {
       markdown,
       flowchartMermaid: mermaidBlocks[0] ?? "",
       sequenceMermaid: mermaidBlocks[1] ?? "",
+      adoptionMermaid: mermaidBlocks[2] ?? "",
       implementationPlanPath: "docs/implementation-plan.md",
       implementationPlanMarkdown,
       implementationProgressPath: "docs/implementation-progress.md",

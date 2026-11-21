@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
@@ -8,6 +8,7 @@ import type {
   ExecutionMode,
   HitlPolicyMode,
 } from "../shared/contracts";
+import { SegmentedTabs } from "./ui/SegmentedTabs";
 
 export function NewIngressModal({
   open,
@@ -65,7 +66,56 @@ export function NewIngressModal({
     },
   });
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !mutation.isPending) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose, mutation.isPending]);
+
   if (!open) return null;
+
+  const applyPreset = (preset: "prod_external" | "staging_canary") => {
+    if (preset === "prod_external") {
+      setExecutionMode("gitops_pr_v2");
+      setTicketRef("NET-4902");
+      setAppName("billing-api");
+      setEnvironment("prod");
+      setHostname("billing.corp.example.com");
+      setPathPrefix("/v1/billing");
+      setBackendService("billing-core-svc");
+      setBackendPort("8443");
+      setExposure("external");
+      setTlsProfile("tls_1_3_strict");
+      setJustification(
+        "Production ingress onboarding for billing-api with WAF and TLS 1.3 strict profile."
+      );
+      setNaturalPrompt(
+        "Expose billing-api in prod at billing.corp.example.com under /v1/billing targeting billing-core-svc on port 8443 with external exposure and strict TLS 1.3."
+      );
+    } else {
+      setExecutionMode("direct_canary_v3");
+      setTicketRef("NET-4918");
+      setAppName("checkout-web");
+      setEnvironment("staging");
+      setHostname("checkout.staging.example.com");
+      setPathPrefix("/v2/checkout");
+      setBackendService("checkout-canary-svc");
+      setBackendPort("8080");
+      setExposure("internal");
+      setTlsProfile("mtls_internal");
+      setJustification(
+        "Staging progressive canary validation for checkout v2 internal gateway route."
+      );
+      setNaturalPrompt(
+        "Create a staging canary ingress for checkout-web at checkout.staging.example.com under /v2/checkout targeting checkout-canary-svc on port 8080 with internal mTLS."
+      );
+    }
+  };
 
   const buildPipelineConfig = () => {
     const enabledAgents = [
@@ -143,12 +193,17 @@ export function NewIngressModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 backdrop-blur-[2px] p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="new-ingress-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !mutation.isPending) {
+          onClose();
+        }
+      }}
     >
-      <div className="bg-white border border-slate-200 rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
             <h2 id="new-ingress-title" className="text-base font-semibold text-slate-900">
@@ -169,36 +224,44 @@ export function NewIngressModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
+          {/* Quick Scenario Presets */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
+            <span className="text-xs text-slate-500">Quick-fill template:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyPreset("prod_external")}
+                className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+              >
+                Prod External API
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("staging_canary")}
+                className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+              >
+                Staging Canary Service
+              </button>
+            </div>
+          </div>
+
           {/* Segmented Intake Mode & Execution Mode */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
                 Intake Mode
               </label>
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setIntakeMode("structured")}
-                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-                    intakeMode === "structured"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Structured Schema
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIntakeMode("ai")}
-                  className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-                    intakeMode === "ai"
-                      ? "bg-white text-slate-900 shadow-sm"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  Natural Language (Gemini)
-                </button>
-              </div>
+              <SegmentedTabs
+                fullWidth
+                size="sm"
+                ariaLabel="Ingress intake mode"
+                value={intakeMode}
+                onChange={setIntakeMode}
+                items={[
+                  { id: "structured", label: "Structured Schema" },
+                  { id: "ai", label: "Natural Language (Gemini)" },
+                ]}
+              />
             </div>
 
             <div>

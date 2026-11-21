@@ -3,26 +3,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
   AlertCircle,
-  AlertTriangle,
   ArrowLeft,
-  ArrowUpRight,
-  Check,
   CheckCircle2,
-  Copy,
   Download,
   ExternalLink,
   FileJson,
-  Lock,
   RefreshCw,
   RotateCcw,
-  ShieldCheck,
   SlidersHorizontal,
   XCircle,
 } from "lucide-react";
 import { LiveAgentFlowDiagram } from "../components/LiveAgentFlowDiagram";
-import { BlastRadiusText } from "../components/StatusLabel";
 import { ApprovalModal } from "../components/ui/ApprovalModal";
+import { CodeViewer } from "../components/ui/CodeViewer";
+import { EmptyState } from "../components/ui/EmptyState";
+import { PageHeader } from "../components/ui/PageHeader";
+import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import { StatusBadge } from "../components/ui/StatusBadge";
+import { CanaryRolloutPanel } from "../components/workflows/CanaryRolloutPanel";
+import { DiffHunkCard } from "../components/workflows/DiffHunkCard";
+import { SupervisorRevisePanel } from "../components/workflows/SupervisorRevisePanel";
+import { WorkflowSummaryStrip } from "../components/workflows/WorkflowSummaryStrip";
 import {
   fetchWorkflowById,
   getCurrentOperator,
@@ -32,6 +33,7 @@ import {
   submitWorkflowDecision,
   triggerManualRollback,
 } from "../lib/api";
+import { downloadTextFile } from "../lib/format";
 import { mockWorkflows } from "../lib/mockData";
 
 export function WorkflowDetailRouteView() {
@@ -43,13 +45,8 @@ export function WorkflowDetailRouteView() {
     "config" | "diffs" | "rollback" | "policy" | "traces"
   >("config");
   const [jsonScope, setJsonScope] = useState<"config" | "full">("config");
-  const [copiedJson, setCopiedJson] = useState(false);
   const [decisionModal, setDecisionModal] = useState<"APPROVE" | "REJECT" | null>(null);
-
   const [showRevisePanel, setShowRevisePanel] = useState(false);
-  const [reviseInstruction, setReviseInstruction] = useState("");
-  const [revisePort, setRevisePort] = useState("");
-  const [canarySimFail, setCanarySimFail] = useState(false);
 
   const wfQuery = useQuery({
     queryKey: ["workflow", workflowId],
@@ -68,6 +65,15 @@ export function WorkflowDetailRouteView() {
       }
     },
   });
+
+  const invalidateRelated = (includeRoutes = false) => {
+    queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
+    queryClient.invalidateQueries({ queryKey: ["workflows"] });
+    queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+    if (includeRoutes) {
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+    }
+  };
 
   const decisionMutation = useMutation({
     mutationFn: (vars: {
@@ -100,24 +106,18 @@ export function WorkflowDetailRouteView() {
       if (ctx?.prev) {
         queryClient.setQueryData(["workflow", workflowId], ctx.prev);
       }
-      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+      invalidateRelated(false);
     },
     onSuccess: () => {
       setDecisionModal(null);
-      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["routes"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+      invalidateRelated(true);
     },
   });
 
   const replanMutation = useMutation({
     mutationFn: () => replanWorkflow(workflowId),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+      invalidateRelated(false);
       navigate({
         to: "/workflows/$workflowId",
         params: { workflowId: data.workflow.workflowId },
@@ -126,40 +126,25 @@ export function WorkflowDetailRouteView() {
   });
 
   const reviseMutation = useMutation({
-    mutationFn: () => {
-      const portNum = Number(revisePort);
-      return reviseWorkflow({
+    mutationFn: (payload: { instruction: string; backendPort?: number }) =>
+      reviseWorkflow({
         workflowId,
-        feedbackInstruction: reviseInstruction.trim(),
-        patchRequest:
-          revisePort.trim() && Number.isFinite(portNum) && portNum > 0
-            ? { backendPort: portNum }
-            : undefined,
-      });
-    },
+        feedbackInstruction: payload.instruction,
+        patchRequest: payload.backendPort ? { backendPort: payload.backendPort } : undefined,
+      }),
     onSuccess: () => {
       setShowRevisePanel(false);
-      setReviseInstruction("");
-      setRevisePort("");
-      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+      invalidateRelated(false);
     },
   });
 
   const promoteCanaryMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (simulateProbeFailure: boolean) =>
       promoteCanary({
         workflowId,
-        simulateProbeFailure: canarySimFail,
+        simulateProbeFailure,
       }),
-    onSuccess: () => {
-      setCanarySimFail(false);
-      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["routes"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
-    },
+    onSuccess: () => invalidateRelated(true),
   });
 
   const rollbackMutation = useMutation({
@@ -168,12 +153,7 @@ export function WorkflowDetailRouteView() {
         workflowId,
         reason: "Operator triggered instant deterministic rollback from control plane.",
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
-      queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["routes"] });
-      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
-    },
+    onSuccess: () => invalidateRelated(true),
   });
 
   const wf = wfQuery.data?.workflow;
@@ -216,17 +196,20 @@ export function WorkflowDetailRouteView() {
 
   if (wfQuery.isError || !wf) {
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-        <p className="text-sm font-medium text-slate-900">Workflow not found</p>
-        <p className="text-xs text-slate-500 mt-1 font-mono">{workflowId}</p>
-        <Link
-          to="/workflows"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:underline mt-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Workflows
-        </Link>
-      </div>
+      <EmptyState
+        className="bg-white border border-slate-200 rounded-lg"
+        title="Workflow not found"
+        description={workflowId}
+        action={
+          <Link
+            to="/workflows"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:underline"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Workflows
+          </Link>
+        }
+      />
     );
   }
 
@@ -244,36 +227,27 @@ export function WorkflowDetailRouteView() {
     (wf.environment === "prod" || wf.blastRadius === "HIGH") &&
     activeOperator.operatorId === wf.requesterId;
 
-  const handleCopyJson = async () => {
-    try {
-      await navigator.clipboard.writeText(configurationJson);
-      setCopiedJson(true);
-      setTimeout(() => setCopiedJson(false), 1800);
-    } catch {
-      setCopiedJson(false);
-    }
-  };
+  const policyChecks = wf.changePlan?.policyChecks ?? [];
+  const passedChecksCount = policyChecks.filter((c) => c.passed).length;
+  const totalChecksCount = policyChecks.length;
+  const diffCount = wf.changePlan?.diffs.length ?? 0;
 
   return (
     <div className="space-y-6">
-      {/* Header & Governance Action Controls */}
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div>
+      <PageHeader
+        backLink={
           <Link
             to="/workflows"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900 mb-2"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-900"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             All Workflows
           </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-semibold text-slate-900">
-              {wf.appName} — {wf.ingressRequest.hostname}
-              {wf.ingressRequest.pathPrefix}
-            </h1>
-            <StatusBadge status={wf.status} />
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1.5">
+        }
+        title={`${wf.appName} — ${wf.ingressRequest.hostname}${wf.ingressRequest.pathPrefix}`}
+        badge={<StatusBadge status={wf.status} />}
+        subtitle={
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             <span className="font-mono">{wf.workflowId}</span>
             <span aria-hidden="true">·</span>
             <span className="font-mono">{wf.environment}</span>
@@ -290,206 +264,102 @@ export function WorkflowDetailRouteView() {
               </>
             )}
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {wf.changePlan && (
-            <button
-              type="button"
-              onClick={() => {
-                const bundle = Object.entries(wf.changePlan!.artifacts)
-                  .map(([file, content]) => `# === ${file} ===\n${content}`)
-                  .join("\n\n");
-                const blob = new Blob([bundle], { type: "text/yaml;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${wf.appName}-${wf.environment}-advisory.yaml`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Export Artifacts
-            </button>
-          )}
-
-          {["AWAITING_APPROVAL", "FAILED", "REJECTED", "DRIFT_ABORTED"].includes(wf.status) && (
-            <button
-              type="button"
-              onClick={() => setShowRevisePanel((v) => !v)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Revise with Supervisor
-            </button>
-          )}
-
-          {wf.status === "AWAITING_APPROVAL" && (
-            <>
+        }
+        actions={
+          <>
+            {wf.changePlan && (
               <button
                 type="button"
                 onClick={() => {
-                  decisionMutation.reset();
-                  setDecisionModal("REJECT");
+                  const bundle = Object.entries(wf.changePlan!.artifacts)
+                    .map(([file, content]) => `# === ${file} ===\n${content}`)
+                    .join("\n\n");
+                  downloadTextFile(
+                    `${wf.appName}-${wf.environment}-advisory.yaml`,
+                    bundle,
+                    "text/yaml;charset=utf-8"
+                  );
                 }}
-                className="px-4 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 transition-colors whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
               >
-                Reject Plan
+                <Download className="h-3.5 w-3.5" />
+                Export Artifacts
               </button>
+            )}
+
+            {["AWAITING_APPROVAL", "FAILED", "REJECTED", "DRIFT_ABORTED"].includes(wf.status) && (
               <button
                 type="button"
-                onClick={() => {
-                  decisionMutation.reset();
-                  setDecisionModal("APPROVE");
-                }}
-                className="px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors whitespace-nowrap"
+                onClick={() => setShowRevisePanel((v) => !v)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
               >
-                Approve & Execute
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Revise with Supervisor
               </button>
-            </>
-          )}
+            )}
 
-          {(wf.status === "DRIFT_ABORTED" || wf.status === "REJECTED") && (
-            <button
-              type="button"
-              onClick={() => replanMutation.mutate()}
-              disabled={replanMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors whitespace-nowrap"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${replanMutation.isPending ? "animate-spin" : ""}`}
-              />
-              Re-Plan Against Live ETag
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Supervisor Feedback Revision Panel */}
-      {showRevisePanel && (
-        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-900">
-                Supervisor Agent Feedback Loop (Iteration {wf.supervisorIteration ?? 1}/
-                {wf.pipelineConfig?.maxSupervisorIterations ?? 5})
-              </h2>
-              <p className="text-xs text-slate-500">
-                Steer the agents with new instructions or parameter tweaks—re-runs Phase A & B and
-                seals a fresh ChangePlan & RollbackPlan.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="text"
-              value={reviseInstruction}
-              onChange={(e) => setReviseInstruction(e.target.value)}
-              placeholder="e.g., Switch backend port to 9443 and verify strict TLS posture"
-              className="md:col-span-3 px-3 py-2 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
-            />
-            <input
-              type="number"
-              min={1}
-              max={65535}
-              value={revisePort}
-              onChange={(e) => setRevisePort(e.target.value)}
-              placeholder={`Port override (now ${wf.ingressRequest.backendPort})`}
-              className="px-3 py-2 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 tabular-nums"
-            />
-          </div>
-          {reviseMutation.isError && (
-            <p className="text-xs text-red-700">{(reviseMutation.error as Error).message}</p>
-          )}
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setShowRevisePanel(false)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={reviseInstruction.trim().length < 4 || reviseMutation.isPending}
-              onClick={() => reviseMutation.mutate()}
-              className="px-4 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-50"
-            >
-              {reviseMutation.isPending ? "Re-Planning..." : "Re-Run Agents"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Staged Canary Progressive Traffic Controller */}
-      {wf.executionMode === "direct_canary_v3" &&
-        wf.canaryState &&
-        (wf.status === "EXECUTING" || wf.status === "COMPLETED") && (
-          <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Progressive Canary Rollout Controller (Current Traffic:{" "}
-                  <span className="tabular-nums">{wf.canaryState.currentWeight}%</span>)
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
-                  Stages: {wf.canaryState.steps.map((s) => `${s}%`).join(" -> ")} · Stage{" "}
-                  {wf.canaryState.stageIndex + 1}/{wf.canaryState.steps.length}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {wf.status === "EXECUTING" && (
-                  <>
-                    <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={canarySimFail}
-                        onChange={(e) => setCanarySimFail(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-700"
-                      />
-                      <span>Inject HTTP 503 on Promote</span>
-                    </label>
-                    <button
-                      type="button"
-                      disabled={promoteCanaryMutation.isPending}
-                      onClick={() => promoteCanaryMutation.mutate()}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 whitespace-nowrap"
-                    >
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                      Promote to{" "}
-                      {wf.canaryState.steps[
-                        Math.min(wf.canaryState.stageIndex + 1, wf.canaryState.steps.length - 1)
-                      ]}
-                      %
-                    </button>
-                  </>
-                )}
-
+            {wf.status === "AWAITING_APPROVAL" && (
+              <>
                 <button
                   type="button"
-                  disabled={rollbackMutation.isPending}
-                  onClick={() => rollbackMutation.mutate()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 whitespace-nowrap"
+                  onClick={() => {
+                    decisionMutation.reset();
+                    setDecisionModal("REJECT");
+                  }}
+                  className="px-4 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 transition-colors whitespace-nowrap"
                 >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Instant Deterministic Rollback
+                  Reject Plan
                 </button>
-              </div>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    decisionMutation.reset();
+                    setDecisionModal("APPROVE");
+                  }}
+                  className="px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors whitespace-nowrap"
+                >
+                  Approve & Execute
+                </button>
+              </>
+            )}
 
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-700 transition-all"
-                style={{ width: `${wf.canaryState.currentWeight}%` }}
-              />
-            </div>
-          </div>
-        )}
+            {(wf.status === "DRIFT_ABORTED" || wf.status === "REJECTED") && (
+              <button
+                type="button"
+                onClick={() => replanMutation.mutate()}
+                disabled={replanMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors whitespace-nowrap"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${replanMutation.isPending ? "animate-spin" : ""}`}
+                />
+                Re-Plan Against Live ETag
+              </button>
+            )}
+          </>
+        }
+      />
 
-      {/* Error / Probe Alerts */}
+      {showRevisePanel && (
+        <SupervisorRevisePanel
+          iteration={wf.supervisorIteration ?? 1}
+          maxIterations={wf.pipelineConfig?.maxSupervisorIterations ?? 5}
+          currentPort={wf.ingressRequest.backendPort}
+          isPending={reviseMutation.isPending}
+          errorMessage={reviseMutation.isError ? (reviseMutation.error as Error).message : null}
+          onCancel={() => setShowRevisePanel(false)}
+          onSubmit={(payload) => reviseMutation.mutate(payload)}
+        />
+      )}
+
+      <CanaryRolloutPanel
+        workflow={wf}
+        isPromotePending={promoteCanaryMutation.isPending}
+        isRollbackPending={rollbackMutation.isPending}
+        onPromote={(simFail) => promoteCanaryMutation.mutate(simFail)}
+        onRollback={() => rollbackMutation.mutate()}
+      />
+
       {wf.errorMessage && (
         <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900">
           <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
@@ -537,218 +407,101 @@ export function WorkflowDetailRouteView() {
         </div>
       )}
 
-      {/* Primary Summary Strip: ETag Verification, Blast Radius Score & Approval Gate */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 bg-white border border-slate-200 rounded-lg divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
-        <div className="p-5 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-500">ETag Verification Status</span>
-            <span className="text-xs font-mono font-semibold text-slate-700">
-              {etagVerificationStatus}
-            </span>
+      {wf.status === "AWAITING_APPROVAL" && (
+        <div className="bg-amber-50/70 border border-amber-200 rounded-lg px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <div className="text-xs font-semibold text-amber-900">
+              Action Needed — ExecutionAgent Locked at HITL Gate
+            </div>
+            <p className="text-xs text-amber-800 tabular-nums">
+              {totalChecksCount > 0
+                ? `${passedChecksCount}/${totalChecksCount} policy checks passed`
+                : "Policy evaluation pending"}
+              {" · "}
+              {etagMatches ? "Live ETag verified" : "ETag mismatch detected"}
+              {" · "}
+              {isSelfApprovalBlocked
+                ? `Switch operator role in sidebar (${activeOperator.operatorId} cannot self-approve)`
+                : "Ready for signed four-eyes decision"}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            {etagMatches ? (
-              <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-            )}
-            <span
-              className={`text-sm font-semibold ${
-                etagMatches ? "text-emerald-700" : "text-red-700"
-              }`}
-            >
-              {etagMatches
-                ? "Verified — Live State Matches Plan ETag"
-                : "Mismatch — Infrastructure Drift Detected"}
-            </span>
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 truncate tabular-nums">
-            Target ETag: {targetEtag}
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 truncate tabular-nums">
-            Live ETag: {liveEtag}
-          </div>
-        </div>
 
-        <div className="p-5 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-500">Blast Radius Score</span>
-            <span className="text-xs font-mono font-semibold text-slate-800 tabular-nums">
-              {wf.blastRadius}
-            </span>
-          </div>
-          <div className="pt-0.5">
-            <BlastRadiusText score={wf.blastRadius} />
-          </div>
-          <div className="text-xs font-mono text-slate-700 pt-1 tabular-nums">
-            {wf.ingressRequest.backendService}:{wf.ingressRequest.backendPort} ·{" "}
-            {wf.ingressRequest.tlsProfile}
-          </div>
-          <div className="text-[11px] font-mono text-slate-500 truncate">
-            {wf.changePlan
-              ? `Plan Digest: ${wf.changePlan.planDigestSha256.slice(0, 24)}...`
-              : `Request ID: ${wf.ingressRequest.requestId}`}
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              decisionMutation.reset();
+              setDecisionModal("APPROVE");
+            }}
+            className="px-4 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 transition-colors whitespace-nowrap shrink-0"
+          >
+            Review & Sign
+          </button>
         </div>
+      )}
 
-        <div className="p-5 space-y-1.5">
-          <div className="text-xs font-medium text-slate-500">Approval & RBAC Gate</div>
-          {wf.approvalDecision ? (
-            <>
-              <div className="text-sm font-semibold text-slate-900">
-                {wf.approvalDecision.decision} by {wf.approvalDecision.reviewerId}
-              </div>
-              <div className="text-xs text-slate-600 line-clamp-2">
-                “{wf.approvalDecision.rationale}”
-              </div>
-              <div className="text-[11px] font-mono text-slate-500 truncate">
-                HMAC: {wf.approvalDecision.signature.slice(0, 24)}...
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
-                <Lock className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                <span>Four-Eyes Enforcement Active</span>
-              </div>
-              <p className="text-xs text-slate-500">
-                {isSelfApprovalBlocked
-                  ? `Active operator (${activeOperator.operatorId}) is the requester and cannot self-approve.`
-                  : "Signed HMAC token required before ExecutionAgent unlocks write tools."}
-              </p>
-            </>
-          )}
-        </div>
-      </div>
+      <WorkflowSummaryStrip
+        workflow={wf}
+        liveStateEtag={liveEtag}
+        etagVerificationStatus={etagVerificationStatus}
+        etagMatches={etagMatches}
+        targetEtag={targetEtag}
+        isSelfApprovalBlocked={isSelfApprovalBlocked}
+        activeOperatorId={activeOperator.operatorId}
+      />
 
-      {/* Inspector Tabs (Configuration JSON first-class + Diffs / Rollback / Policy / Agent Pipeline) */}
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-200/70 rounded-lg w-fit">
-          {(
-            [
-              ["config", "Configuration JSON"],
-              ["diffs", "YAML / HCL Diffs"],
-              ["rollback", "Deterministic RollbackPlan"],
-              ["policy", "Policy Matrix"],
-              ["traces", "ADK Agent Pipeline"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setInspectorTab(key)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
-                inspectorTab === key
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs
+          ariaLabel="Workflow inspector tabs"
+          value={inspectorTab}
+          onChange={setInspectorTab}
+          items={[
+            { id: "config", label: "Configuration JSON" },
+            { id: "diffs", label: "YAML / HCL Diffs", count: diffCount },
+            { id: "rollback", label: "Deterministic RollbackPlan" },
+            {
+              id: "policy",
+              label: "Policy Matrix",
+              count: totalChecksCount > 0 ? `${passedChecksCount}/${totalChecksCount}` : undefined,
+            },
+            { id: "traces", label: "ADK Agent Pipeline", count: wf.agentTraces.length },
+          ]}
+        />
 
         {inspectorTab === "config" && (
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+          <CodeViewer
+            title={
+              <>
                 <FileJson className="h-4 w-4 text-slate-600 shrink-0" />
-                <span className="text-xs font-semibold text-slate-900">
-                  Full Ingress Configuration JSON
-                </span>
-                <span className="text-xs text-slate-500">·</span>
-                <span className="text-xs font-mono text-slate-600">
+                <span>Full Ingress Configuration JSON</span>
+                <span className="text-slate-400">·</span>
+                <span className="font-mono font-normal text-slate-600">
                   {wf.ingressRequest.hostname}
                   {wf.ingressRequest.pathPrefix}
                 </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 p-0.5 bg-slate-200/70 rounded-md">
-                  <button
-                    type="button"
-                    onClick={() => setJsonScope("config")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                      jsonScope === "config"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Ingress & Pipeline Config
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setJsonScope("full")}
-                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap ${
-                      jsonScope === "full"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Full Workflow Record
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCopyJson}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
-                >
-                  {copiedJson ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      Copy JSON
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <pre className="p-4 text-xs font-mono leading-relaxed bg-slate-950 text-slate-100 overflow-x-auto max-h-[540px] tabular-nums">
-              {configurationJson}
-            </pre>
-          </div>
+              </>
+            }
+            headerActions={
+              <SegmentedTabs
+                size="sm"
+                ariaLabel="Configuration JSON scope"
+                value={jsonScope}
+                onChange={setJsonScope}
+                items={[
+                  { id: "config", label: "Ingress & Pipeline Config" },
+                  { id: "full", label: "Full Workflow Record" },
+                ]}
+              />
+            }
+            code={configurationJson}
+            copyLabel="Copy JSON"
+            maxHeightClass="max-h-[540px]"
+          />
         )}
 
         {inspectorTab === "diffs" && (
           <div className="space-y-4">
             {wf.changePlan ? (
-              wf.changePlan.diffs.map((hunk) => (
-                <div
-                  key={hunk.filePath}
-                  className="bg-white border border-slate-200 rounded-lg overflow-hidden"
-                >
-                  <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-                    <div className="text-xs font-mono font-medium text-slate-900">
-                      {hunk.filePath} · {hunk.resourceKind}
-                    </div>
-                    <div className="text-xs font-mono tabular-nums flex items-center gap-3">
-                      <span className="text-emerald-700">+{hunk.linesAdded}</span>
-                      <span className="text-red-700">-{hunk.linesRemoved}</span>
-                    </div>
-                  </div>
-                  <pre className="p-4 text-xs font-mono overflow-x-auto leading-relaxed bg-slate-950 text-slate-100">
-                    {hunk.unifiedDiff.split("\n").map((line, i) => {
-                      const cls =
-                        line.startsWith("+") && !line.startsWith("+++")
-                          ? "text-emerald-400 bg-emerald-950/40 block px-2 -mx-2"
-                          : line.startsWith("-") && !line.startsWith("---")
-                            ? "text-red-400 bg-red-950/40 block px-2 -mx-2"
-                            : "text-slate-300 block";
-                      return (
-                        <span key={i} className={cls}>
-                          {line}
-                        </span>
-                      );
-                    })}
-                  </pre>
-                </div>
-              ))
+              wf.changePlan.diffs.map((hunk) => <DiffHunkCard key={hunk.filePath} hunk={hunk} />)
             ) : (
               <div className="bg-white border border-slate-200 rounded-lg p-6 text-xs text-slate-500">
                 No synthesized ChangePlan artifacts are sealed for this workflow yet.
@@ -790,17 +543,13 @@ export function WorkflowDetailRouteView() {
 
                 {Object.entries(wf.changePlan.rollbackPlan.precomputedArtifacts).map(
                   ([filePath, content]) => (
-                    <div
+                    <CodeViewer
                       key={filePath}
-                      className="border border-slate-200 rounded-md overflow-hidden"
-                    >
-                      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-mono text-slate-800">
-                        Restore Target: {filePath}
-                      </div>
-                      <pre className="p-4 text-xs font-mono bg-slate-950 text-slate-100 overflow-x-auto">
-                        {content}
-                      </pre>
-                    </div>
+                      title={<span className="font-mono">Restore Target: {filePath}</span>}
+                      code={content}
+                      copyLabel="Copy Artifact"
+                      maxHeightClass="max-h-[360px]"
+                    />
                   )
                 )}
               </>
@@ -906,7 +655,6 @@ export function WorkflowDetailRouteView() {
         )}
       </div>
 
-      {/* Reusable RBAC ApprovalModal */}
       <ApprovalModal
         open={Boolean(decisionModal)}
         onClose={() => setDecisionModal(null)}

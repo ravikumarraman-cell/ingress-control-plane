@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle2, Copy, Download, Play, Save, XCircle } from "lucide-react";
 import { MermaidDiagram } from "../components/MermaidDiagram";
+import { LeadershipOverviewSection } from "../components/architecture/LeadershipOverviewSection";
+import { CodeViewer } from "../components/ui/CodeViewer";
+import { PageHeader } from "../components/ui/PageHeader";
+import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import {
   fetchArchitectureDoc,
   runValidationSuite,
@@ -9,6 +13,7 @@ import {
   saveImplementationPlan,
   saveImplementationProgress,
 } from "../lib/api";
+import { copyTextToClipboard, downloadTextFile } from "../lib/format";
 
 const PYDANTIC_SNIPPET = `class IngressRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -86,8 +91,8 @@ CREATE TRIGGER trg_audit_no_update
 export function ArchitecturePage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<
-    "diagrams" | "contracts" | "roadmap" | "progress" | "markdown"
-  >("diagrams");
+    "executive" | "diagrams" | "contracts" | "roadmap" | "progress" | "markdown"
+  >("executive");
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [draftPlanMarkdown, setDraftPlanMarkdown] = useState("");
   const [draftProgressMarkdown, setDraftProgressMarkdown] = useState("");
@@ -114,25 +119,21 @@ export function ArchitecturePage() {
     docQuery.data?.implementationProgressMarkdown,
   ]);
 
+  const invalidateDoc = () => queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
+
   const saveMutation = useMutation({
     mutationFn: (md: string) => saveArchitectureDoc(md),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
-    },
+    onSuccess: invalidateDoc,
   });
 
   const savePlanMutation = useMutation({
     mutationFn: (md: string) => saveImplementationPlan(md),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
-    },
+    onSuccess: invalidateDoc,
   });
 
   const saveProgressMutation = useMutation({
     mutationFn: (md: string) => saveImplementationProgress(md),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
-    },
+    onSuccess: invalidateDoc,
   });
 
   const validationMutation = useMutation({
@@ -141,30 +142,20 @@ export function ArchitecturePage() {
 
   const handleCopyMarkdown = async () => {
     if (!docQuery.data?.markdown) return;
-    await navigator.clipboard.writeText(docQuery.data.markdown);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
-
-  const handleDownloadMarkdown = () => {
-    if (!docQuery.data?.markdown) return;
-    const blob = new Blob([docQuery.data.markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "architecture-spec.md";
-    a.click();
-    URL.revokeObjectURL(url);
+    if (await copyTextToClipboard(docQuery.data.markdown)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">
-            Stored Architecture & System Design Specification
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1">
+      <PageHeader
+        title="Ingress Control Plane — Architecture & Leadership Brief"
+        subtitle={
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <span>Executive value story, on-the-fly agent design, and technical blueprint</span>
+            <span aria-hidden="true">·</span>
             <span className="font-mono">{docQuery.data?.filePath ?? "docs/architecture-spec.md"}</span>
             <span aria-hidden="true">·</span>
             <span>Version {docQuery.data?.version ?? "1.0.0"}</span>
@@ -172,122 +163,132 @@ export function ArchitecturePage() {
               <>
                 <span aria-hidden="true">·</span>
                 <span className="font-mono tabular-nums">
-                  Last saved {new Date(docQuery.data.updatedAt).toLocaleString()}
+                  Updated {new Date(docQuery.data.updatedAt).toLocaleString()}
                 </span>
               </>
             )}
           </div>
-        </div>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={handleCopyMarkdown}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+              {copied ? "Copied Spec" : "Copy Markdown"}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                docQuery.data?.markdown &&
+                downloadTextFile(
+                  "architecture-spec.md",
+                  docQuery.data.markdown,
+                  "text/markdown;charset=utf-8"
+                )
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export .md
+            </button>
+          </>
+        }
+      />
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleCopyMarkdown}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied Spec" : "Copy Markdown"}
-          </button>
-          <button
-            type="button"
-            onClick={handleDownloadMarkdown}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export .md
-          </button>
-        </div>
-      </div>
-
-      {/* Segmented Navigation Tabs */}
-      <div className="flex items-center gap-1 p-1 bg-slate-200/70 rounded-lg w-fit overflow-x-auto max-w-full">
-        {(
-          [
-            ["diagrams", "Mermaid Diagrams"],
-            ["contracts", "Data Contracts & SQL"],
-            ["roadmap", "Phased Plan (v1–v3)"],
-            ["progress", "Progress Tracker"],
-            ["markdown", "Stored Markdown & Editor"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
-              tab === key
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        ariaLabel="Architecture documentation sections"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: "executive", label: "Leadership Brief & Adoption" },
+          { id: "diagrams", label: "System Blueprint Diagrams" },
+          { id: "contracts", label: "Data Contracts & SQL" },
+          { id: "roadmap", label: "Phased Plan (v1–v3)" },
+          { id: "progress", label: "Progress & Proof" },
+          { id: "markdown", label: "Full Document & Editor" },
+        ]}
+      />
 
       {docQuery.isLoading ? (
         <div className="h-96 bg-white border border-slate-200 rounded-lg animate-pulse" />
+      ) : tab === "executive" ? (
+        <LeadershipOverviewSection adoptionMermaid={docQuery.data?.adoptionMermaid} />
       ) : tab === "diagrams" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200">
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">1. Control Plane Only</div>
+              <div className="text-xs font-semibold text-slate-900">1. Zero Latency in Traffic</div>
               <p className="text-xs text-slate-600 mt-1">
-                LLM inference runs asynchronously in the control plane; zero LLM latency in live packet routing.
+                AI runs offline in the planning control plane; live user packets never wait on LLM calls.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">2. Read/Write Separation</div>
+              <div className="text-xs font-semibold text-slate-900">2. Read-Only Agents First</div>
               <p className="text-xs text-slate-600 mt-1">
-                Phase A & B use <code className="font-mono">sa-ingress-readonly</code>; only ExecutionAgent holds scoped write tools.
+                Analysis and on-the-fly agents run with <code className="font-mono">sa-ingress-readonly</code>; only Execution holds write keys.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">3. TOCTOU ETag Lock</div>
+              <div className="text-xs font-semibold text-slate-900">3. Anti-Drift ETag Lock</div>
               <p className="text-xs text-slate-600 mt-1">
-                Every ChangePlan pins a SHA-256 <code className="font-mono">target_state_etag</code> re-verified prior to apply.
+                Every plan pins a SHA-256 snapshot (<code className="font-mono">target_state_etag</code>) re-verified right before apply.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">4. Deterministic Rollback</div>
+              <div className="text-xs font-semibold text-slate-900">4. Instant Rollback (&lt; 60s)</div>
               <p className="text-xs text-slate-600 mt-1">
-                Rollbacks are pre-computed declarative artifacts sealed before approval, never improvised during incidents.
+                Rollbacks are pre-built prior to human approval—executed deterministically if probes fail.
               </p>
             </div>
           </div>
 
           {docQuery.data?.flowchartMermaid && (
-            <MermaidDiagram
-              title="System Architecture Topology (flowchart TD)"
-              code={docQuery.data.flowchartMermaid}
-            />
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600">
+                <strong>Friendly Guide:</strong> Read top-to-bottom—Requests enter the web control plane,
+                pass through parallel read-only AI checks, pause for signed human sign-off (amber), and
+                only then touch Kubernetes/Cloud APIs.
+              </p>
+              <MermaidDiagram
+                title="End-to-End Platform Blueprint (Control Plane Isolation)"
+                code={docQuery.data.flowchartMermaid}
+              />
+            </div>
           )}
 
           {docQuery.data?.sequenceMermaid && (
-            <MermaidDiagram
-              title="End-to-End Execution & HITL Sequence (sequenceDiagram)"
-              code={docQuery.data.sequenceMermaid}
-            />
+            <div className="space-y-2">
+              <p className="text-xs text-slate-600">
+                <strong>Friendly Guide:</strong> Step-by-step lifecycle showing how an engineer's request
+                is checked in parallel, signed off by a reviewer, checked against cluster drift, and
+                protected by automated health probes.
+              </p>
+              <MermaidDiagram
+                title="Request-to-Production Safety Flow (With Human Gate & Auto-Rollback)"
+                code={docQuery.data.sequenceMermaid}
+              />
+            </div>
           )}
         </div>
       ) : tab === "contracts" ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-900">
-              Pydantic v2 Data Contracts (Control Plane Schemas)
-            </div>
-            <pre className="p-4 text-xs font-mono bg-slate-950 text-slate-100 overflow-x-auto leading-relaxed">
-              {PYDANTIC_SNIPPET}
-            </pre>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-900">
-              PostgreSQL Durable State & Append-Only Audit DDL
-            </div>
-            <pre className="p-4 text-xs font-mono bg-slate-950 text-slate-100 overflow-x-auto leading-relaxed">
-              {POSTGRES_DDL}
-            </pre>
-          </div>
+          <CodeViewer
+            title="Pydantic v2 Data Contracts (Control Plane Schemas)"
+            code={PYDANTIC_SNIPPET}
+            copyLabel="Copy Python"
+          />
+          <CodeViewer
+            title="PostgreSQL Durable State & Append-Only Audit DDL"
+            code={POSTGRES_DDL}
+            copyLabel="Copy SQL"
+          />
         </div>
       ) : tab === "roadmap" ? (
         <div className="space-y-6">
@@ -352,17 +353,13 @@ export function ArchitecturePage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const blob = new Blob([draftPlanMarkdown], {
-                      type: "text/markdown;charset=utf-8",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "implementation-plan.md";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                  onClick={() =>
+                    downloadTextFile(
+                      "implementation-plan.md",
+                      draftPlanMarkdown,
+                      "text/markdown;charset=utf-8"
+                    )
+                  }
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -419,7 +416,7 @@ export function ArchitecturePage() {
               </p>
             </div>
             <div className="p-4 space-y-1">
-              <div className="text-xs font-mono text-slate-500">Flexible Agent Engine</div>
+              <div className="text-xs font-mono text-slate-500">On-the-Fly Agent Engine</div>
               <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
                 100%
               </div>
@@ -487,17 +484,13 @@ export function ArchitecturePage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const blob = new Blob([draftProgressMarkdown], {
-                      type: "text/markdown;charset=utf-8",
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "implementation-progress.md";
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
+                  onClick={() =>
+                    downloadTextFile(
+                      "implementation-progress.md",
+                      draftProgressMarkdown,
+                      "text/markdown;charset=utf-8"
+                    )
+                  }
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -526,9 +519,7 @@ export function ArchitecturePage() {
       ) : (
         <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-            <span className="text-xs font-mono text-slate-700">
-              {docQuery.data?.filePath}
-            </span>
+            <span className="text-xs font-mono text-slate-700">{docQuery.data?.filePath}</span>
             <button
               type="button"
               onClick={() => saveMutation.mutate(draftMarkdown)}

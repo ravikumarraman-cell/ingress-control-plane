@@ -2,15 +2,19 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   redirect,
 } from "@tanstack/react-router";
 import { RootLayout } from "./components/layout/RootLayout";
-import { ApprovalsPage } from "./pages/ApprovalsPage";
-import { AgentFlowPage } from "./pages/AgentFlowPage";
-import { ArchitecturePage } from "./pages/ArchitecturePage";
-import { AuditLogPage } from "./pages/AuditLogPage";
-import { WorkflowsPage } from "./pages/WorkflowsPage";
-import { WorkflowDetailRouteView } from "./routes/workflows.$workflowId";
+
+function RoutePendingFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="h-16 bg-white border border-slate-200 rounded-lg animate-pulse" />
+      <div className="h-80 bg-white border border-slate-200 rounded-lg animate-pulse" />
+    </div>
+  );
+}
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -35,37 +39,40 @@ export const indexRoute = createRoute({
 export const workflowsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workflows",
-  component: WorkflowsPage,
+  component: lazyRouteComponent(() => import("./pages/WorkflowsPage"), "WorkflowsPage"),
 });
 
 export const workflowDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workflows/$workflowId",
-  component: WorkflowDetailRouteView,
+  component: lazyRouteComponent(
+    () => import("./routes/workflows.$workflowId"),
+    "WorkflowDetailRouteView"
+  ),
 });
 
 export const approvalsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/approvals",
-  component: ApprovalsPage,
+  component: lazyRouteComponent(() => import("./pages/ApprovalsPage"), "ApprovalsPage"),
 });
 
 export const auditLogRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audit-log",
-  component: AuditLogPage,
+  component: lazyRouteComponent(() => import("./pages/AuditLogPage"), "AuditLogPage"),
 });
 
 export const architectureRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/architecture",
-  component: ArchitecturePage,
+  component: lazyRouteComponent(() => import("./pages/ArchitecturePage"), "ArchitecturePage"),
 });
 
 export const agentsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/agents",
-  component: AgentFlowPage,
+  component: lazyRouteComponent(() => import("./pages/AgentFlowPage"), "AgentFlowPage"),
 });
 
 const routeTree = rootRoute.addChildren([
@@ -81,6 +88,8 @@ const routeTree = rootRoute.addChildren([
 export const router = createRouter({
   routeTree,
   defaultPreload: "intent",
+  defaultPendingMs: 120,
+  defaultPendingComponent: RoutePendingFallback,
 });
 
 declare module "@tanstack/react-router" {
