@@ -1,0 +1,6 @@
+{
+  "name": "Ingress Control Plane",
+  "description": "Governed multi-agent networking ingress control plane with TanStack governance UI, HITL approvals, TOCTOU ETag locking, and stored architecture specification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
