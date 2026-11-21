@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { RefreshCw, ShieldCheck, X } from "lucide-react";
 import { WorkflowsTable } from "../components/WorkflowsTable";
+import { ControlPlaneStatusDashboard } from "../components/dashboard/ControlPlaneStatusDashboard";
 import { DataTable } from "../components/ui/DataTable";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchFilterBar } from "../components/ui/SearchFilterBar";
@@ -101,11 +102,6 @@ export function WorkflowsPage() {
     setStatusFilter("all");
     setSearchQuery("");
   };
-
-  const pendingApprovalCount = useMemo(
-    () => allWorkflows.filter((w) => w.status === "AWAITING_APPROVAL").length,
-    [allWorkflows]
-  );
 
   const routeColumns = useMemo(
     () =>
@@ -221,81 +217,14 @@ export function WorkflowsPage() {
         </div>
       )}
 
-      {/* Interactive Summary Metric Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y lg:divide-y-0 lg:divide-x divide-slate-200 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("workflows");
-            setStatusFilter("all");
-          }}
-          className={`p-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${
-            activeTab === "workflows" && statusFilter === "all" ? "bg-slate-50/70" : ""
-          }`}
-        >
-          <div className="text-xs font-medium text-slate-500">Total Workflows</div>
-          <div className="text-2xl font-semibold text-slate-900 font-mono tabular-nums mt-1">
-            {allWorkflows.length}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Show full queue</div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("workflows");
-            setStatusFilter((prev) =>
-              prev === "AWAITING_APPROVAL" ? "all" : "AWAITING_APPROVAL"
-            );
-          }}
-          className={`p-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${
-            activeTab === "workflows" && statusFilter === "AWAITING_APPROVAL"
-              ? "bg-amber-50/50"
-              : ""
-          }`}
-        >
-          <div className="text-xs font-medium text-slate-500">Awaiting Human Approval</div>
-          <div className="text-2xl font-semibold text-amber-700 font-mono tabular-nums mt-1">
-            {pendingApprovalCount}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {statusFilter === "AWAITING_APPROVAL" ? "Filtering pending gates" : "Filter pending gates"}
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("routes")}
-          className={`p-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${
-            activeTab === "routes" ? "bg-slate-50/70" : ""
-          }`}
-        >
-          <div className="text-xs font-medium text-slate-500">Active Ingress Routes</div>
-          <div className="text-2xl font-semibold text-slate-900 font-mono tabular-nums mt-1">
-            {allRoutes.length}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">Inspect cluster routes</div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("workflows");
-            setStatusFilter((prev) => (prev === "DRIFT_ABORTED" ? "all" : "DRIFT_ABORTED"));
-          }}
-          className={`p-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600 ${
-            activeTab === "workflows" && statusFilter === "DRIFT_ABORTED" ? "bg-slate-50/70" : ""
-          }`}
-        >
-          <div className="text-xs font-medium text-slate-500">Out-of-Band Drift Events</div>
-          <div className="text-2xl font-semibold text-slate-900 font-mono tabular-nums mt-1">
-            {routesQuery.data?.driftCounter ?? 0}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {statusFilter === "DRIFT_ABORTED" ? "Filtering drift aborts" : "TOCTOU ETag guard"}
-          </div>
-        </button>
-      </div>
+      <ControlPlaneStatusDashboard
+        activeStatusFilter={statusFilter}
+        onSelectStatusFilter={(status) => {
+          setActiveTab("workflows");
+          setStatusFilter(status);
+        }}
+        onShowRoutes={() => setActiveTab("routes")}
+      />
 
       {/* Filter & Segmented Tab Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

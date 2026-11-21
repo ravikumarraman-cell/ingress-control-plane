@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCircle2, Copy, Download, Play, Save, XCircle } from "lucide-react";
 import { MermaidDiagram } from "../components/MermaidDiagram";
 import { LeadershipOverviewSection } from "../components/architecture/LeadershipOverviewSection";
+import { NetworkTopologyGraph } from "../components/topology/NetworkTopologyGraph";
 import { CodeViewer } from "../components/ui/CodeViewer";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs";
@@ -91,7 +92,7 @@ CREATE TRIGGER trg_audit_no_update
 export function ArchitecturePage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<
-    "executive" | "diagrams" | "contracts" | "roadmap" | "progress" | "markdown"
+    "executive" | "topology" | "diagrams" | "contracts" | "roadmap" | "progress" | "markdown"
   >("executive");
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [draftPlanMarkdown, setDraftPlanMarkdown] = useState("");
@@ -208,6 +209,7 @@ export function ArchitecturePage() {
         onChange={setTab}
         items={[
           { id: "executive", label: "Leadership Brief & Adoption" },
+          { id: "topology", label: "Network Topology (D3)" },
           { id: "diagrams", label: "System Blueprint Diagrams" },
           { id: "contracts", label: "Data Contracts & SQL" },
           { id: "roadmap", label: "Phased Plan (v1–v3)" },
@@ -220,6 +222,8 @@ export function ArchitecturePage() {
         <div className="h-96 bg-white border border-slate-200 rounded-lg animate-pulse" />
       ) : tab === "executive" ? (
         <LeadershipOverviewSection adoptionMermaid={docQuery.data?.adoptionMermaid} />
+      ) : tab === "topology" ? (
+        <NetworkTopologyGraph flowchartMermaidOverride={docQuery.data?.flowchartMermaid} />
       ) : tab === "diagrams" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200">
