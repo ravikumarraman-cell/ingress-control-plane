@@ -4,6 +4,7 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   BookOpen,
   CheckSquare,
+  Cpu,
   FileText,
   GitBranch,
   Plus,
@@ -50,12 +51,14 @@ export function RootLayout({ children }: { children?: ReactNode }) {
     }
     if (pathname.startsWith("/approvals")) return "Governance / Pending Approvals";
     if (pathname.startsWith("/audit-log")) return "Governance / Audit Trail";
+    if (pathname.startsWith("/agents")) return "Control Plane / Live Agent Flow";
     if (pathname.startsWith("/architecture")) return "Documentation / Architecture Spec";
     return "Control Plane / Workflows";
   };
 
   const navItems = [
     { to: "/workflows" as const, label: "Workflows", icon: GitBranch },
+    { to: "/agents" as const, label: "Agent Flow", icon: Cpu },
     {
       to: "/approvals" as const,
       label: "Approvals",

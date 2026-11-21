@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { RootLayout } from "./components/layout/RootLayout";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
+import { AgentFlowPage } from "./pages/AgentFlowPage";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { AuditLogPage } from "./pages/AuditLogPage";
 import { WorkflowDetailPage } from "./pages/WorkflowDetailPage";
@@ -61,6 +62,12 @@ export const architectureRoute = createRoute({
   component: ArchitecturePage,
 });
 
+export const agentsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/agents",
+  component: AgentFlowPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   workflowsRoute,
@@ -68,6 +75,7 @@ const routeTree = rootRoute.addChildren([
   approvalsRoute,
   auditLogRoute,
   architectureRoute,
+  agentsRoute,
 ]);
 
 export const router = createRouter({

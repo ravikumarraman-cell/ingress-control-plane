@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react";
+import { LiveAgentFlowDiagram } from "../components/LiveAgentFlowDiagram";
 import { BlastRadiusText, WorkflowStatusText } from "../components/StatusLabel";
 import {
   fetchWorkflowById,
@@ -463,45 +464,48 @@ export function WorkflowDetailPage() {
         )}
 
         {inspectorTab === "traces" && (
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Agent</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Phase</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">
-                    Credential Scope
-                  </th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">State</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Summary</th>
-                  <th className="px-4 py-2.5 text-xs font-semibold text-slate-600 text-right">
-                    Latency
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-xs">
-                {wf.agentTraces.map((tr, idx) => (
-                  <tr key={`${tr.agentName}-${idx}`}>
-                    <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
-                      {tr.agentName}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">
-                      {tr.phase}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-700 whitespace-nowrap">
-                      {tr.accessMode}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-slate-800">
-                      {tr.status}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{tr.summary}</td>
-                    <td className="px-4 py-3 font-mono tabular-nums text-slate-500 text-right whitespace-nowrap">
-                      {tr.durationMs ? `${tr.durationMs}ms` : "—"}
-                    </td>
+          <div className="space-y-5">
+            <LiveAgentFlowDiagram workflow={wf} liveEtag={liveEtag} compact />
+            <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Agent</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Phase</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">
+                      Credential Scope
+                    </th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">State</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600">Summary</th>
+                    <th className="px-4 py-2.5 text-xs font-semibold text-slate-600 text-right">
+                      Latency
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-200 text-xs">
+                  {wf.agentTraces.map((tr, idx) => (
+                    <tr key={`${tr.agentName}-${idx}`}>
+                      <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
+                        {tr.agentName}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">
+                        {tr.phase}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-700 whitespace-nowrap">
+                        {tr.accessMode}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-slate-800">
+                        {tr.status}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">{tr.summary}</td>
+                      <td className="px-4 py-3 font-mono tabular-nums text-slate-500 text-right whitespace-nowrap">
+                        {tr.durationMs ? `${tr.durationMs}ms` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
