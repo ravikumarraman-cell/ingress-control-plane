@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Download, Save } from "lucide-react";
+import { Check, CheckCircle2, Copy, Download, Play, Save, XCircle } from "lucide-react";
 import { MermaidDiagram } from "../components/MermaidDiagram";
-import { fetchArchitectureDoc, saveArchitectureDoc, saveImplementationPlan } from "../lib/api";
+import {
+  fetchArchitectureDoc,
+  runValidationSuite,
+  saveArchitectureDoc,
+  saveImplementationPlan,
+  saveImplementationProgress,
+} from "../lib/api";
 
 const PYDANTIC_SNIPPET = `class IngressRequest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -79,9 +85,12 @@ CREATE TRIGGER trg_audit_no_update
 
 export function ArchitecturePage() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<"diagrams" | "contracts" | "roadmap" | "markdown">("diagrams");
+  const [tab, setTab] = useState<
+    "diagrams" | "contracts" | "roadmap" | "progress" | "markdown"
+  >("diagrams");
   const [draftMarkdown, setDraftMarkdown] = useState("");
   const [draftPlanMarkdown, setDraftPlanMarkdown] = useState("");
+  const [draftProgressMarkdown, setDraftProgressMarkdown] = useState("");
   const [copied, setCopied] = useState(false);
 
   const docQuery = useQuery({
@@ -96,7 +105,14 @@ export function ArchitecturePage() {
     if (docQuery.data?.implementationPlanMarkdown) {
       setDraftPlanMarkdown(docQuery.data.implementationPlanMarkdown);
     }
-  }, [docQuery.data?.markdown, docQuery.data?.implementationPlanMarkdown]);
+    if (docQuery.data?.implementationProgressMarkdown) {
+      setDraftProgressMarkdown(docQuery.data.implementationProgressMarkdown);
+    }
+  }, [
+    docQuery.data?.markdown,
+    docQuery.data?.implementationPlanMarkdown,
+    docQuery.data?.implementationProgressMarkdown,
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: (md: string) => saveArchitectureDoc(md),
@@ -110,6 +126,17 @@ export function ArchitecturePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
     },
+  });
+
+  const saveProgressMutation = useMutation({
+    mutationFn: (md: string) => saveImplementationProgress(md),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["architecture-doc"] });
+    },
+  });
+
+  const validationMutation = useMutation({
+    mutationFn: runValidationSuite,
   });
 
   const handleCopyMarkdown = async () => {
@@ -179,6 +206,7 @@ export function ArchitecturePage() {
             ["diagrams", "Mermaid Diagrams"],
             ["contracts", "Data Contracts & SQL"],
             ["roadmap", "Phased Plan (v1–v3)"],
+            ["progress", "Progress Tracker"],
             ["markdown", "Stored Markdown & Editor"],
           ] as const
         ).map(([key, label]) => (
@@ -357,6 +385,141 @@ export function ArchitecturePage() {
               rows={24}
               className="w-full p-4 text-xs font-mono text-slate-900 bg-white focus:outline-none leading-relaxed"
               aria-label="Stored phased implementation plan markdown"
+            />
+          </div>
+        </div>
+      ) : tab === "progress" ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200">
+            <div className="p-4 space-y-1">
+              <div className="text-xs font-mono text-slate-500">Phase v1</div>
+              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+                95%
+              </div>
+              <p className="text-xs text-slate-600">
+                Advisory pipeline, Gemini intake, ETag determinism, SSE replay & bundle export done.
+              </p>
+            </div>
+            <div className="p-4 space-y-1">
+              <div className="text-xs font-mono text-slate-500">Phase v2</div>
+              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+                90%
+              </div>
+              <p className="text-xs text-slate-600">
+                Configurable HITL gate, four-eyes RBAC, HMAC signing, TOCTOU drift lock & replan done.
+              </p>
+            </div>
+            <div className="p-4 space-y-1">
+              <div className="text-xs font-mono text-slate-500">Phase v3</div>
+              <div className="text-xl font-semibold text-blue-700 font-mono tabular-nums">
+                85%
+              </div>
+              <p className="text-xs text-slate-600">
+                Staged canary shifting (10→50→100%), 4-probe checks, instant rollback & audit verifier.
+              </p>
+            </div>
+            <div className="p-4 space-y-1">
+              <div className="text-xs font-mono text-slate-500">Flexible Agent Engine</div>
+              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+                100%
+              </div>
+              <p className="text-xs text-slate-600">
+                Custom specialist agents, dynamic policy rules, Supervisor loops & real-time diagram.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Live Validation Gate Verification Suite
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Execute real server-side checks against secret rejection, 50x ETag determinism, RBAC separation, and SHA-256 audit continuity.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={validationMutation.isPending}
+                onClick={() => validationMutation.mutate()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 whitespace-nowrap"
+              >
+                <Play className="h-3.5 w-3.5" />
+                {validationMutation.isPending ? "Running Checks..." : "Run Validation Gates"}
+              </button>
+            </div>
+
+            {validationMutation.data?.results && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                {validationMutation.data.results.map((gate) => (
+                  <div
+                    key={gate.gateId}
+                    className={`p-3.5 border rounded-md text-xs ${
+                      gate.passed
+                        ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+                        : "bg-red-50 border-red-200 text-red-900"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 font-semibold">
+                      <span className="inline-flex items-center gap-1.5">
+                        {gate.passed ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5 text-red-700" />
+                        )}
+                        {gate.gateId} · {gate.name}
+                      </span>
+                      <span className="font-mono uppercase">{gate.passed ? "PASS" : "FAIL"}</span>
+                    </div>
+                    <p className="mt-1 opacity-90">{gate.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
+              <span className="text-xs font-mono text-slate-700">
+                {docQuery.data?.implementationProgressPath ?? "docs/implementation-progress.md"}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const blob = new Blob([draftProgressMarkdown], {
+                      type: "text/markdown;charset=utf-8",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "implementation-progress.md";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Export Progress .md
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveProgressMutation.mutate(draftProgressMarkdown)}
+                  disabled={saveProgressMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 whitespace-nowrap"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {saveProgressMutation.isPending ? "Saving..." : "Save Progress"}
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={draftProgressMarkdown}
+              onChange={(e) => setDraftProgressMarkdown(e.target.value)}
+              rows={24}
+              className="w-full p-4 text-xs font-mono text-slate-900 bg-white focus:outline-none leading-relaxed"
+              aria-label="Stored implementation progress tracker markdown"
             />
           </div>
         </div>

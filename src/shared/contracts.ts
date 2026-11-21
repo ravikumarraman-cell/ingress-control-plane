@@ -37,6 +37,7 @@ export type ExecutionMode = z.infer<typeof ExecutionModeSchema>;
 const SECRET_PATTERNS: RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
   /(api[_-]?key|secret|password|bearer|token)\s*[:=]\s*['"]?[A-Za-z0-9+/=_-]{16,}/i,
+  /\bbearer\s+[A-Za-z0-9._+/=-]{16,}/i,
 ];
 
 export function containsEmbeddedSecret(value: string): boolean {
@@ -186,6 +187,53 @@ export interface AgentStepTrace {
   completedAt?: string;
 }
 
+export interface CustomAgentSpec {
+  agentName: string;
+  instruction: string;
+  accessMode: "READ_ONLY" | "NONE";
+}
+
+export type HitlPolicyMode = "always" | "prod_or_high" | "auto_low_risk";
+
+export interface WorkflowPipelineConfig {
+  hitlPolicy: HitlPolicyMode;
+  enabledAgents: string[];
+  customAgents: CustomAgentSpec[];
+  canarySteps: number[];
+  maxSupervisorIterations: number;
+  customInstructions?: string;
+}
+
+export interface CanaryState {
+  steps: number[];
+  stageIndex: number;
+  currentWeight: number;
+  lastPromotedAt?: string;
+}
+
+export interface CustomPolicyRule {
+  ruleId: string;
+  name: string;
+  description: string;
+  conditionType:
+    | "require_ticket"
+    | "max_port"
+    | "allowed_domain_suffix"
+    | "enforce_waf_staging";
+  value: string;
+  severity: "WARN" | "BLOCK";
+  enabled: boolean;
+}
+
+export interface ValidationGateResult {
+  gateId: string;
+  phase: "v1" | "v2" | "v3";
+  name: string;
+  passed: boolean;
+  detail: string;
+  checkedAt: string;
+}
+
 export interface WorkflowRun {
   workflowId: string;
   adkSessionId: string;
@@ -195,6 +243,9 @@ export interface WorkflowRun {
   environment: Environment;
   status: WorkflowStatus;
   executionMode: ExecutionMode;
+  pipelineConfig?: WorkflowPipelineConfig;
+  supervisorIteration?: number;
+  canaryState?: CanaryState | null;
   ingressRequest: IngressRequest;
   currentStateEtag: string;
   blastRadius: BlastRadiusScore;
@@ -210,6 +261,12 @@ export interface WorkflowRun {
     latencyMs: number;
     checkedAt: string;
     detail: string;
+    probes?: {
+      dns: string;
+      tls13Alpn: string;
+      httpHealth: string;
+      wafEnforcement: string;
+    };
   } | null;
   errorMessage?: string | null;
   createdAt: string;
@@ -238,4 +295,7 @@ export interface ArchitectureDocPayload {
   sequenceMermaid: string;
   implementationPlanPath: string;
   implementationPlanMarkdown: string;
+  implementationProgressPath: string;
+  implementationProgressMarkdown: string;
 }
+

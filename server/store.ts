@@ -7,6 +7,7 @@ import type {
   ArchitectureDocPayload,
   AuditEvent,
   ChangePlan,
+  CustomPolicyRule,
   DiffHunk,
   WorkflowRun,
 } from "../src/shared/contracts.ts";
@@ -15,16 +16,39 @@ const DATA_DIR = path.resolve(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "control-plane-state.json");
 const DOC_FILE = path.resolve(process.cwd(), "docs", "architecture-spec.md");
 const PLAN_FILE = path.resolve(process.cwd(), "docs", "implementation-plan.md");
+const PROGRESS_FILE = path.resolve(process.cwd(), "docs", "implementation-progress.md");
 
 const SIGNING_SECRET =
   process.env.APPROVAL_SIGNING_SECRET && process.env.APPROVAL_SIGNING_SECRET.length >= 16
     ? process.env.APPROVAL_SIGNING_SECRET
     : crypto.randomBytes(32).toString("hex");
 
+export const DEFAULT_CUSTOM_POLICY_RULES: CustomPolicyRule[] = [
+  {
+    ruleId: "CUSTOM-TICKET-PROD",
+    name: "Require Change Ticket on Prod",
+    description: "Every production ingress request must supply a ticketRef (e.g. NET-1234).",
+    conditionType: "require_ticket",
+    value: "prod",
+    severity: "BLOCK",
+    enabled: false,
+  },
+  {
+    ruleId: "CUSTOM-DOMAIN-ALLOW",
+    name: "Corporate Domain Allowlist",
+    description: "Ensure external hostnames end with .example.com",
+    conditionType: "allowed_domain_suffix",
+    value: ".example.com",
+    severity: "WARN",
+    enabled: true,
+  },
+];
+
 export interface PersistedState {
   routes: ActiveIngressRoute[];
   workflows: WorkflowRun[];
   auditEvents: AuditEvent[];
+  customPolicyRules: CustomPolicyRule[];
   driftCounter: number;
 }
 
@@ -598,6 +622,7 @@ function buildInitialState(): PersistedState {
     routes,
     workflows: [wf1, wf2],
     auditEvents: [],
+    customPolicyRules: DEFAULT_CUSTOM_POLICY_RULES.map((r) => ({ ...r })),
     driftCounter: 0,
   };
 
@@ -739,7 +764,11 @@ class ControlPlaneStore {
     try {
       if (fs.existsSync(STATE_FILE)) {
         const raw = fs.readFileSync(STATE_FILE, "utf-8");
-        return JSON.parse(raw) as PersistedState;
+        const parsed = JSON.parse(raw) as PersistedState;
+        if (!Array.isArray(parsed.customPolicyRules)) {
+          parsed.customPolicyRules = DEFAULT_CUSTOM_POLICY_RULES.map((r) => ({ ...r }));
+        }
+        return parsed;
       }
     } catch {
       // Fallback to fresh initial state if file is unreadable
@@ -787,6 +816,9 @@ class ControlPlaneStore {
     const implementationPlanMarkdown = fs.existsSync(PLAN_FILE)
       ? fs.readFileSync(PLAN_FILE, "utf-8")
       : "# Implementation Plan Not Found";
+    const implementationProgressMarkdown = fs.existsSync(PROGRESS_FILE)
+      ? fs.readFileSync(PROGRESS_FILE, "utf-8")
+      : "# Implementation Progress Not Found";
     const stat = fs.existsSync(DOC_FILE) ? fs.statSync(DOC_FILE) : null;
 
     const mermaidBlocks = Array.from(markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)).map(
@@ -803,6 +835,8 @@ class ControlPlaneStore {
       sequenceMermaid: mermaidBlocks[1] ?? "",
       implementationPlanPath: "docs/implementation-plan.md",
       implementationPlanMarkdown,
+      implementationProgressPath: "docs/implementation-progress.md",
+      implementationProgressMarkdown,
     };
   }
 
@@ -823,6 +857,16 @@ class ControlPlaneStore {
     }
     fs.mkdirSync(docsDir, { recursive: true });
     fs.writeFileSync(PLAN_FILE, markdown, "utf-8");
+    return this.getArchitectureDoc();
+  }
+
+  saveImplementationProgress(markdown: string): ArchitectureDocPayload {
+    const docsDir = path.resolve(process.cwd(), "docs");
+    if (!PROGRESS_FILE.startsWith(docsDir + path.sep)) {
+      throw new Error("Invalid document path boundary");
+    }
+    fs.mkdirSync(docsDir, { recursive: true });
+    fs.writeFileSync(PROGRESS_FILE, markdown, "utf-8");
     return this.getArchitectureDoc();
   }
 }

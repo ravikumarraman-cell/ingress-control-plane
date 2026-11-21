@@ -147,7 +147,8 @@ Open **`http://localhost:3000`** in your browser. The Express API + Vite React U
 ```text
 ├── docs/
 │   ├── architecture-spec.md        # Complete system & low-level design specification
-│   └── implementation-plan.md      # Detailed v1–v3 phased roadmap & validation gates
+│   ├── implementation-plan.md      # Detailed v1–v3 phased roadmap & validation gates
+│   └── implementation-progress.md  # Live milestone completion & validation tracker
 ├── server/
 │   ├── agents.ts                   # Multi-agent orchestration, policies, ETag & rollback logic
 │   └── store.ts                    # Durable JSON persistence, HMAC signing & SHA-256 audit chain
@@ -191,3 +192,4 @@ Open **`http://localhost:3000`** in your browser. The Express API + Vite React U
 
 - [System Architecture & Low-Level Design Specification](docs/architecture-spec.md)
 - [Phased Implementation Plan (v1–v3)](docs/implementation-plan.md)
+- [Implementation Progress Tracker](docs/implementation-progress.md)

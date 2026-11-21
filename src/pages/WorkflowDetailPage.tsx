@@ -5,12 +5,15 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  ArrowUpRight,
   CheckCircle2,
+  Download,
   ExternalLink,
   Lock,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  SlidersHorizontal,
   XCircle,
 } from "lucide-react";
 import { LiveAgentFlowDiagram } from "../components/LiveAgentFlowDiagram";
@@ -18,8 +21,11 @@ import { BlastRadiusText, WorkflowStatusText } from "../components/StatusLabel";
 import {
   fetchWorkflowById,
   getCurrentOperator,
+  promoteCanary,
   replanWorkflow,
+  reviseWorkflow,
   submitWorkflowDecision,
+  triggerManualRollback,
 } from "../lib/api";
 
 export function WorkflowDetailPage() {
@@ -33,6 +39,12 @@ export function WorkflowDetailPage() {
   const [decisionModal, setDecisionModal] = useState<"APPROVE" | "REJECT" | null>(null);
   const [rationale, setRationale] = useState("");
   const [simulateProbeFailure, setSimulateProbeFailure] = useState(false);
+
+  // Flexible Supervisor Revision & Canary State
+  const [showRevisePanel, setShowRevisePanel] = useState(false);
+  const [reviseInstruction, setReviseInstruction] = useState("");
+  const [revisePort, setRevisePort] = useState("");
+  const [canarySimFail, setCanarySimFail] = useState(false);
 
   const wfQuery = useQuery({
     queryKey: ["workflow", workflowId],
@@ -93,6 +105,57 @@ export function WorkflowDetailPage() {
         to: "/workflows/$workflowId",
         params: { workflowId: data.workflow.workflowId },
       });
+    },
+  });
+
+  const reviseMutation = useMutation({
+    mutationFn: () => {
+      const portNum = Number(revisePort);
+      return reviseWorkflow({
+        workflowId,
+        feedbackInstruction: reviseInstruction.trim(),
+        patchRequest:
+          revisePort.trim() && Number.isFinite(portNum) && portNum > 0
+            ? { backendPort: portNum }
+            : undefined,
+      });
+    },
+    onSuccess: () => {
+      setShowRevisePanel(false);
+      setReviseInstruction("");
+      setRevisePort("");
+      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+    },
+  });
+
+  const promoteCanaryMutation = useMutation({
+    mutationFn: () =>
+      promoteCanary({
+        workflowId,
+        simulateProbeFailure: canarySimFail,
+      }),
+    onSuccess: () => {
+      setCanarySimFail(false);
+      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+    },
+  });
+
+  const rollbackMutation = useMutation({
+    mutationFn: () =>
+      triggerManualRollback({
+        workflowId,
+        reason: "Operator triggered instant deterministic rollback from control plane.",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
     },
   });
 
@@ -165,7 +228,40 @@ export function WorkflowDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {wf.changePlan && (
+            <button
+              type="button"
+              onClick={() => {
+                const bundle = Object.entries(wf.changePlan!.artifacts)
+                  .map(([file, content]) => `# === ${file} ===\n${content}`)
+                  .join("\n\n");
+                const blob = new Blob([bundle], { type: "text/yaml;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${wf.appName}-${wf.environment}-advisory.yaml`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export Artifacts
+            </button>
+          )}
+
+          {["AWAITING_APPROVAL", "FAILED", "REJECTED", "DRIFT_ABORTED"].includes(wf.status) && (
+            <button
+              type="button"
+              onClick={() => setShowRevisePanel((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Revise with Supervisor
+            </button>
+          )}
+
           {wf.status === "AWAITING_APPROVAL" && (
             <>
               <button
@@ -205,6 +301,126 @@ export function WorkflowDetailPage() {
         </div>
       </div>
 
+      {/* Flexible Supervisor Revision Panel */}
+      {showRevisePanel && (
+        <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900">
+                Supervisor Agent Feedback Loop (Iteration {wf.supervisorIteration ?? 1}/
+                {wf.pipelineConfig?.maxSupervisorIterations ?? 5})
+              </h2>
+              <p className="text-xs text-slate-500">
+                Steer the agents with new instructions or parameter tweaks—re-runs Phase A & B and seals a fresh ChangePlan & RollbackPlan.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              value={reviseInstruction}
+              onChange={(e) => setReviseInstruction(e.target.value)}
+              placeholder="e.g., Switch backend port to 9443 and verify strict TLS posture"
+              className="md:col-span-3 px-3 py-2 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={revisePort}
+              onChange={(e) => setRevisePort(e.target.value)}
+              placeholder={`Port override (now ${wf.ingressRequest.backendPort})`}
+              className="px-3 py-2 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+          </div>
+          {reviseMutation.isError && (
+            <p className="text-xs text-red-700">{(reviseMutation.error as Error).message}</p>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowRevisePanel(false)}
+              className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={reviseInstruction.trim().length < 4 || reviseMutation.isPending}
+              onClick={() => reviseMutation.mutate()}
+              className="px-4 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-50"
+            >
+              {reviseMutation.isPending ? "Re-Planning..." : "Re-Run Agents"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Staged Canary Progressive Traffic Controller (Phase v3) */}
+      {wf.executionMode === "direct_canary_v3" &&
+        wf.canaryState &&
+        (wf.status === "EXECUTING" || wf.status === "COMPLETED") && (
+          <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Progressive Canary Rollout Controller (Current Traffic: {wf.canaryState.currentWeight}%)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Stages: {wf.canaryState.steps.map((s) => `${s}%`).join(" -> ")} · Stage{" "}
+                  {wf.canaryState.stageIndex + 1}/{wf.canaryState.steps.length}
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                {wf.status === "EXECUTING" && (
+                  <>
+                    <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={canarySimFail}
+                        onChange={(e) => setCanarySimFail(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-700"
+                      />
+                      <span>Inject HTTP 503 on Promote</span>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={promoteCanaryMutation.isPending}
+                      onClick={() => promoteCanaryMutation.mutate()}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 disabled:opacity-60 whitespace-nowrap"
+                    >
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                      Promote to{" "}
+                      {wf.canaryState.steps[
+                        Math.min(wf.canaryState.stageIndex + 1, wf.canaryState.steps.length - 1)
+                      ]}
+                      %
+                    </button>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  disabled={rollbackMutation.isPending}
+                  onClick={() => rollbackMutation.mutate()}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 whitespace-nowrap"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Instant Deterministic Rollback
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-700 transition-all"
+                style={{ width: `${wf.canaryState.currentWeight}%` }}
+              />
+            </div>
+          </div>
+        )}
+
       {/* Error / Drift / Rollback Alert Banner */}
       {wf.errorMessage && (
         <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900">
@@ -241,6 +457,11 @@ export function WorkflowDetailPage() {
               <span>Latency: {wf.probeResult.latencyMs}ms</span>
               <span>DNS: {wf.probeResult.dnsResolved ? "OK" : "FAIL"}</span>
               <span>TLS 1.3: {wf.probeResult.tlsVerified ? "OK" : "FAIL"}</span>
+              {wf.probeResult.probes && (
+                <>
+                  <span>WAF: {wf.probeResult.probes.wafEnforcement}</span>
+                </>
+              )}
               {wf.gitopsPrUrl && (
                 <span className="inline-flex items-center gap-1">
                   <ExternalLink className="h-3 w-3" />

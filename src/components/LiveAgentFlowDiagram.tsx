@@ -860,6 +860,34 @@ export function LiveAgentFlowDiagram({
                 {renderAgentCard("discovery")}
                 {renderAgentCard("policy")}
                 {renderAgentCard("impact")}
+                {workflow?.agentTraces
+                  .filter(
+                    (tr) =>
+                      tr.phase === "PHASE_A_PARALLEL" &&
+                      ![
+                        "DiscoveryInventoryAgent",
+                        "PolicyComplianceAgent",
+                        "ImpactAnalysisAgent",
+                      ].includes(tr.agentName)
+                  )
+                  .map((extra, idx) => (
+                    <div
+                      key={`${extra.agentName}-${idx}`}
+                      className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5 text-xs"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-slate-900 truncate">
+                          {extra.agentName}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-700 shrink-0">
+                          {extra.durationMs ? `${extra.durationMs}ms` : "OK"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                        {extra.summary}
+                      </p>
+                    </div>
+                  ))}
               </div>
 
               {/* Column 3: Phase B Sequential */}

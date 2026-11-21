@@ -11,8 +11,12 @@ import {
 } from "./src/shared/contracts.ts";
 import {
   createAndPlanWorkflow,
+  executeManualRollback,
   parseNaturalLanguageIngressRequest,
   processApprovalAndExecute,
+  promoteCanaryStep,
+  reviseWorkflowWithAgentFeedback,
+  runValidationGates,
 } from "./server/agents.ts";
 import { store, verifyAuditChain } from "./server/store.ts";
 
@@ -21,9 +25,11 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: "1mb" }));
 
-// SSE Client Registry
+// SSE Client Registry + Last-Event-ID Replay Buffer (V1-SSE-01)
 type SseClient = { id: string; res: Response };
+type BufferedSseEvent = { id: number; payload: string };
 const sseClients = new Set<SseClient>();
+const sseHistory: BufferedSseEvent[] = [];
 let sseEventCounter = 0;
 
 function broadcastWorkflowEvent(eventType: string, workflow: WorkflowRun): void {
@@ -36,6 +42,9 @@ function broadcastWorkflowEvent(eventType: string, workflow: WorkflowRun): void 
     liveStateEtag: store.getLiveEtag(),
     updatedAt: workflow.updatedAt,
   });
+  sseHistory.push({ id: sseEventCounter, payload });
+  if (sseHistory.length > 100) sseHistory.shift();
+
   for (const client of sseClients) {
     client.res.write(`id: ${sseEventCounter}\n`);
     client.res.write(`event: workflow_update\n`);
@@ -73,6 +82,18 @@ app.get("/api/v1/workflows/events", (req: Request, res: Response) => {
   res.write(
     `event: connected\ndata: ${JSON.stringify({ liveStateEtag: store.getLiveEtag() })}\n\n`
   );
+
+  const lastIdRaw = req.header("last-event-id");
+  const lastId = lastIdRaw ? Number.parseInt(lastIdRaw, 10) : NaN;
+  if (Number.isFinite(lastId)) {
+    for (const ev of sseHistory) {
+      if (ev.id > lastId) {
+        res.write(`id: ${ev.id}\n`);
+        res.write(`event: workflow_update\n`);
+        res.write(`data: ${ev.payload}\n\n`);
+      }
+    }
+  }
 
   const heartbeat = setInterval(() => {
     res.write(`: heartbeat\n\n`);
@@ -147,16 +168,37 @@ app.get("/api/v1/workflows/:workflowId", (req: Request, res: Response) => {
   });
 });
 
+const PipelineConfigSchema = z
+  .object({
+    hitlPolicy: z.enum(["always", "prod_or_high", "auto_low_risk"]).optional(),
+    enabledAgents: z.array(z.string()).optional(),
+    customAgents: z
+      .array(
+        z.object({
+          agentName: z.string().min(2).max(64),
+          instruction: z.string().min(4).max(300),
+          accessMode: z.enum(["READ_ONLY", "NONE"]).default("READ_ONLY"),
+        })
+      )
+      .optional(),
+    canarySteps: z.array(z.number().int().min(1).max(100)).optional(),
+    maxSupervisorIterations: z.number().int().min(1).max(10).optional(),
+    customInstructions: z.string().max(500).optional(),
+  })
+  .optional();
+
 const CreateWorkflowBodySchema = z.discriminatedUnion("intakeMode", [
   z.object({
     intakeMode: z.literal("ai"),
     naturalLanguagePrompt: z.string().min(10).max(2000),
     ticketRef: z.string().max(64).nullable().optional(),
     executionMode: ExecutionModeSchema.default("gitops_pr_v2"),
+    pipelineConfig: PipelineConfigSchema,
   }),
   z.object({
     intakeMode: z.literal("structured"),
     executionMode: ExecutionModeSchema.default("gitops_pr_v2"),
+    pipelineConfig: PipelineConfigSchema,
     request: z.object({
       ticketRef: z.string().max(64).nullable().optional(),
       appName: z.string(),
@@ -211,6 +253,7 @@ app.post("/api/v1/workflows", async (req: Request, res: Response) => {
     const workflow = await createAndPlanWorkflow({
       request: ingressRequest,
       executionMode: parsedBody.data.executionMode,
+      pipelineConfig: parsedBody.data.pipelineConfig,
       onEvent: broadcastWorkflowEvent,
     });
 
@@ -239,6 +282,7 @@ app.post("/api/v1/workflows/:workflowId/replan", async (req: Request, res: Respo
         requestId: crypto.randomUUID(),
       },
       executionMode: existing.executionMode,
+      pipelineConfig: existing.pipelineConfig,
       onEvent: broadcastWorkflowEvent,
     });
     res.status(201).json({
@@ -247,6 +291,91 @@ app.post("/api/v1/workflows/:workflowId/replan", async (req: Request, res: Respo
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Re-plan failed.";
+    res.status(400).json({ error: message });
+  }
+});
+
+// Flexible Supervisor Revision Loop (Re-run agents with operator feedback)
+const ReviseBodySchema = z.object({
+  feedbackInstruction: z.string().min(4).max(500),
+  pipelineConfig: PipelineConfigSchema,
+  patchRequest: z
+    .object({
+      backendPort: z.number().int().min(1).max(65535).optional(),
+      backendService: z.string().optional(),
+      tlsProfile: z.enum(["tls_1_3_strict", "tls_1_2_compat", "mtls_internal"]).optional(),
+      pathPrefix: z.string().optional(),
+    })
+    .optional(),
+});
+
+app.post("/api/v1/workflows/:workflowId/revise", async (req: Request, res: Response) => {
+  const { operatorId } = getOperatorFromHeaders(req);
+  const parsed = ReviseBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  try {
+    const revised = await reviseWorkflowWithAgentFeedback({
+      workflowId: req.params.workflowId,
+      actorId: operatorId,
+      feedbackInstruction: parsed.data.feedbackInstruction,
+      pipelineConfig: parsed.data.pipelineConfig,
+      patchRequest: parsed.data.patchRequest,
+      onEvent: broadcastWorkflowEvent,
+    });
+    res.json({
+      liveStateEtag: store.getLiveEtag(),
+      workflow: revised,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to revise workflow.";
+    res.status(400).json({ error: message });
+  }
+});
+
+// Promote Progressive Canary Stage (v3)
+app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request, res: Response) => {
+  const { operatorId } = getOperatorFromHeaders(req);
+  const simulateFailure = Boolean(req.body?.simulateProbeFailure);
+  try {
+    const updated = promoteCanaryStep({
+      workflowId: req.params.workflowId,
+      actorId: operatorId,
+      simulateProbeFailure: simulateFailure,
+      onEvent: broadcastWorkflowEvent,
+    });
+    res.json({
+      liveStateEtag: store.getLiveEtag(),
+      workflow: updated,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to promote canary.";
+    res.status(400).json({ error: message });
+  }
+});
+
+// Manual Instant Deterministic Rollback (v3)
+app.post("/api/v1/workflows/:workflowId/rollback", (req: Request, res: Response) => {
+  const { operatorId } = getOperatorFromHeaders(req);
+  const reason =
+    typeof req.body?.reason === "string" && req.body.reason.trim().length > 0
+      ? req.body.reason.trim()
+      : "Operator triggered instant deterministic rollback.";
+  try {
+    const updated = executeManualRollback({
+      workflowId: req.params.workflowId,
+      actorId: operatorId,
+      reason,
+      onEvent: broadcastWorkflowEvent,
+    });
+    res.json({
+      liveStateEtag: store.getLiveEtag(),
+      workflow: updated,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to trigger rollback.";
     res.status(400).json({ error: message });
   }
 });
@@ -304,7 +433,72 @@ app.get("/api/v1/audit-log/verify", (_req: Request, res: Response) => {
   res.json(verifyAuditChain(state.auditEvents));
 });
 
-// Stored Architecture Specification Document
+// Dynamic Custom Policy Rules Registry
+app.get("/api/v1/policies", (_req: Request, res: Response) => {
+  res.json({ rules: store.getState().customPolicyRules });
+});
+
+const CreatePolicySchema = z.object({
+  name: z.string().min(3).max(80),
+  description: z.string().min(4).max(240),
+  conditionType: z.enum([
+    "require_ticket",
+    "max_port",
+    "allowed_domain_suffix",
+    "enforce_waf_staging",
+  ]),
+  value: z.string().max(120),
+  severity: z.enum(["WARN", "BLOCK"]),
+});
+
+app.post("/api/v1/policies", (req: Request, res: Response) => {
+  const parsed = CreatePolicySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  const state = store.getState();
+  const rule = {
+    ruleId: `CUSTOM-${crypto.randomUUID().slice(0, 6).toUpperCase()}`,
+    ...parsed.data,
+    enabled: true,
+  };
+  state.customPolicyRules.push(rule);
+  store.commit();
+  res.status(201).json({ rule, rules: state.customPolicyRules });
+});
+
+app.patch("/api/v1/policies/:ruleId", (req: Request, res: Response) => {
+  const state = store.getState();
+  const rule = state.customPolicyRules.find((r) => r.ruleId === req.params.ruleId);
+  if (!rule) {
+    res.status(404).json({ error: "Policy rule not found." });
+    return;
+  }
+  if (typeof req.body?.enabled === "boolean") {
+    rule.enabled = req.body.enabled;
+  }
+  if (req.body?.severity === "WARN" || req.body?.severity === "BLOCK") {
+    rule.severity = req.body.severity;
+  }
+  store.commit();
+  res.json({ rule, rules: state.customPolicyRules });
+});
+
+app.delete("/api/v1/policies/:ruleId", (req: Request, res: Response) => {
+  const state = store.getState();
+  state.customPolicyRules = state.customPolicyRules.filter((r) => r.ruleId !== req.params.ruleId);
+  store.commit();
+  res.json({ rules: state.customPolicyRules });
+});
+
+// Live Validation Gate Runner
+app.post("/api/v1/validation/run", (_req: Request, res: Response) => {
+  const results = runValidationGates();
+  res.json({ results });
+});
+
+// Stored Architecture Specification, Plan & Progress Documents
 app.get("/api/v1/architecture", (_req: Request, res: Response) => {
   res.json(store.getArchitectureDoc());
 });
@@ -330,6 +524,16 @@ app.put("/api/v1/implementation-plan", (req: Request, res: Response) => {
     return;
   }
   const updated = store.saveImplementationPlan(parsed.data.markdown);
+  res.json(updated);
+});
+
+app.put("/api/v1/implementation-progress", (req: Request, res: Response) => {
+  const parsed = SaveArchSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({ error: parsed.error.issues.map((i) => i.message).join("; ") });
+    return;
+  }
+  const updated = store.saveImplementationProgress(parsed.data.markdown);
   res.json(updated);
 });
 

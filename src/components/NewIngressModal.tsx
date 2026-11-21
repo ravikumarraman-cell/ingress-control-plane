@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 import { createWorkflow, type CreateWorkflowInput } from "../lib/api";
-import type { ExecutionMode } from "../shared/contracts";
+import type {
+  CustomAgentSpec,
+  ExecutionMode,
+  HitlPolicyMode,
+} from "../shared/contracts";
 
 export function NewIngressModal({
   open,
@@ -37,6 +41,17 @@ export function NewIngressModal({
     "Production ingress onboarding for billing-api with WAF and TLS 1.3 strict profile."
   );
 
+  // Flexible Agent Pipeline Controls
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [hitlPolicy, setHitlPolicy] = useState<HitlPolicyMode>("always");
+  const [enableCostAgent, setEnableCostAgent] = useState(true);
+  const [enableSecPostureAgent, setEnableSecPostureAgent] = useState(true);
+  const [canaryPreset, setCanaryPreset] = useState<"10_50_100" | "25_100" | "100">("10_50_100");
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [customAgents, setCustomAgents] = useState<CustomAgentSpec[]>([]);
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentInstruction, setNewAgentInstruction] = useState("");
+
   const mutation = useMutation({
     mutationFn: (payload: CreateWorkflowInput) => createWorkflow(payload),
     onSuccess: (data) => {
@@ -52,19 +67,64 @@ export function NewIngressModal({
 
   if (!open) return null;
 
+  const buildPipelineConfig = () => {
+    const enabledAgents = [
+      "DiscoveryInventoryAgent",
+      "PolicyComplianceAgent",
+      "ImpactAnalysisAgent",
+      "ChangePlanningAgent",
+      "ValidationRollbackAgent",
+    ];
+    if (enableCostAgent) enabledAgents.push("CostEstimationAgent");
+    if (enableSecPostureAgent) enabledAgents.push("SecurityPostureAgent");
+
+    const canarySteps =
+      canaryPreset === "10_50_100"
+        ? [10, 50, 100]
+        : canaryPreset === "25_100"
+          ? [25, 100]
+          : [100];
+
+    return {
+      hitlPolicy,
+      enabledAgents,
+      customAgents,
+      canarySteps,
+      maxSupervisorIterations: 5,
+      customInstructions: customInstructions.trim() || undefined,
+    };
+  };
+
+  const handleAddCustomAgent = () => {
+    if (!newAgentName.trim() || !newAgentInstruction.trim()) return;
+    setCustomAgents((prev) => [
+      ...prev,
+      {
+        agentName: newAgentName.trim(),
+        instruction: newAgentInstruction.trim(),
+        accessMode: "READ_ONLY",
+      },
+    ]);
+    setNewAgentName("");
+    setNewAgentInstruction("");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const pipelineConfig = buildPipelineConfig();
     if (intakeMode === "ai") {
       mutation.mutate({
         intakeMode: "ai",
         naturalLanguagePrompt: naturalPrompt,
         ticketRef: ticketRef.trim() || null,
         executionMode,
+        pipelineConfig,
       });
     } else {
       mutation.mutate({
         intakeMode: "structured",
         executionMode,
+        pipelineConfig,
         request: {
           ticketRef: ticketRef.trim() || null,
           appName: appName.trim(),
@@ -356,6 +416,170 @@ export function NewIngressModal({
               </div>
             </div>
           )}
+
+          {/* Flexible Agent Pipeline & Governance Options */}
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              className="w-full px-4 py-2.5 bg-slate-50 flex items-center justify-between text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+            >
+              <span>Flexible Agent Pipeline & Governance Settings</span>
+              {showAdvanced ? (
+                <ChevronUp className="h-4 w-4 text-slate-500" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-slate-500" />
+              )}
+            </button>
+
+            {showAdvanced && (
+              <div className="p-4 space-y-4 bg-white border-t border-slate-200 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="hitl-policy-select"
+                      className="block font-medium text-slate-700 mb-1"
+                    >
+                      Human Approval (HITL) Policy
+                    </label>
+                    <select
+                      id="hitl-policy-select"
+                      value={hitlPolicy}
+                      onChange={(e) => setHitlPolicy(e.target.value as HitlPolicyMode)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-900"
+                    >
+                      <option value="always">Always Pause for Human Sign-Off</option>
+                      <option value="prod_or_high">Pause on Prod or HIGH Risk Only</option>
+                      <option value="auto_low_risk">Auto-Approve Non-Prod LOW Risk</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="canary-preset-select"
+                      className="block font-medium text-slate-700 mb-1"
+                    >
+                      Canary Rollout Progression (v3)
+                    </label>
+                    <select
+                      id="canary-preset-select"
+                      value={canaryPreset}
+                      onChange={(e) =>
+                        setCanaryPreset(e.target.value as "10_50_100" | "25_100" | "100")
+                      }
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-900 font-mono"
+                    >
+                      <option value="10_50_100">Staged: 10% -&gt; 50% -&gt; 100%</option>
+                      <option value="25_100">Two-Step: 25% -&gt; 100%</option>
+                      <option value="100">Single-Step: 100%</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-medium text-slate-700 mb-1.5">
+                    Optional Specialist Phase A Agents
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={enableCostAgent}
+                        onChange={(e) => setEnableCostAgent(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-700"
+                      />
+                      <span>CostEstimationAgent</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={enableSecPostureAgent}
+                        onChange={(e) => setEnableSecPostureAgent(e.target.checked)}
+                        className="rounded border-slate-300 text-blue-700"
+                      />
+                      <span>SecurityPostureAgent</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="custom-agent-guidance"
+                    className="block font-medium text-slate-700 mb-1"
+                  >
+                    Custom Guidance for Supervisor & Planning Agents
+                  </label>
+                  <input
+                    id="custom-agent-guidance"
+                    type="text"
+                    value={customInstructions}
+                    onChange={(e) => setCustomInstructions(e.target.value)}
+                    placeholder="e.g., Prioritize low-latency regional edge failover and strict HSTS headers"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-md"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  <div className="font-medium text-slate-700">
+                    Add Custom Specialist Agent (Optional)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                    <input
+                      type="text"
+                      value={newAgentName}
+                      onChange={(e) => setNewAgentName(e.target.value)}
+                      placeholder="AgentName"
+                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 rounded-md font-mono"
+                    />
+                    <input
+                      type="text"
+                      value={newAgentInstruction}
+                      onChange={(e) => setNewAgentInstruction(e.target.value)}
+                      placeholder="What should this agent audit?"
+                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCustomAgent}
+                      className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 bg-slate-900 text-white rounded-md hover:bg-slate-800"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add
+                    </button>
+                  </div>
+
+                  {customAgents.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      {customAgents.map((ca, i) => (
+                        <div
+                          key={`${ca.agentName}-${i}`}
+                          className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded"
+                        >
+                          <div className="truncate">
+                            <span className="font-mono font-semibold text-slate-900">
+                              {ca.agentName}
+                            </span>
+                            <span className="text-slate-400 mx-1.5">·</span>
+                            <span className="text-slate-600">{ca.instruction}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCustomAgents((prev) => prev.filter((_, idx) => idx !== i))
+                            }
+                            className="text-slate-400 hover:text-red-600 p-1"
+                            aria-label={`Remove ${ca.agentName}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {mutation.isError && (
             <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-800">
