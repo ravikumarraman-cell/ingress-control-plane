@@ -9,8 +9,8 @@ import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AgentFlowPage } from "./pages/AgentFlowPage";
 import { ArchitecturePage } from "./pages/ArchitecturePage";
 import { AuditLogPage } from "./pages/AuditLogPage";
-import { WorkflowDetailPage } from "./pages/WorkflowDetailPage";
 import { WorkflowsPage } from "./pages/WorkflowsPage";
+import { WorkflowDetailRouteView } from "./routes/workflows.$workflowId";
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -41,7 +41,7 @@ export const workflowsRoute = createRoute({
 export const workflowDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/workflows/$workflowId",
-  component: WorkflowDetailPage,
+  component: WorkflowDetailRouteView,
 });
 
 export const approvalsRoute = createRoute({

@@ -1,18 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import {
-  createColumnHelper,
-  flexRender,
-  tableFeatures,
-  useTable,
-} from "@tanstack/react-table";
 import { CheckCircle2, Search, ShieldAlert, ShieldCheck } from "lucide-react";
+import { AuditLogTable } from "../components/AuditLogTable";
 import { fetchAuditLog, verifyAuditLog } from "../lib/api";
-import type { AuditEvent } from "../shared/contracts";
-
-const features = tableFeatures({});
-const columnHelper = createColumnHelper<typeof features, AuditEvent>();
 
 export function AuditLogPage() {
   const [search, setSearch] = useState("");
@@ -44,85 +34,6 @@ export function AuditLogPage() {
     });
   }, [auditQuery.data, actorFilter, search]);
 
-  const columns = useMemo(
-    () =>
-      columnHelper.columns([
-        columnHelper.accessor("seqNo", {
-          header: "Seq",
-          cell: (info) => (
-            <span className="font-mono text-xs tabular-nums text-slate-500">
-              #{info.getValue()}
-            </span>
-          ),
-        }),
-        columnHelper.accessor("eventType", {
-          header: "Event Type",
-          cell: (info) => (
-            <span className="font-mono text-xs font-semibold text-slate-900 whitespace-nowrap">
-              {info.getValue()}
-            </span>
-          ),
-        }),
-        columnHelper.accessor("actorId", {
-          header: "Actor",
-          cell: (info) => (
-            <div className="text-xs">
-              <span className="text-slate-900 font-medium">{info.getValue()}</span>
-              <span className="text-slate-400 mx-1.5">·</span>
-              <span className="font-mono text-slate-500">{info.row.original.actorType}</span>
-            </div>
-          ),
-        }),
-        columnHelper.accessor("workflowId", {
-          header: "Workflow",
-          cell: (info) => (
-            <Link
-              to="/workflows/$workflowId"
-              params={{ workflowId: info.getValue() }}
-              className="font-mono text-xs text-blue-700 hover:underline whitespace-nowrap"
-            >
-              {info.getValue().slice(0, 8)}...
-            </Link>
-          ),
-        }),
-        columnHelper.accessor("payload", {
-          header: "Payload",
-          cell: (info) => (
-            <code className="text-[11px] font-mono text-slate-600 block max-w-[340px] truncate">
-              {JSON.stringify(info.getValue())}
-            </code>
-          ),
-        }),
-        columnHelper.accessor("eventHash", {
-          header: "SHA-256 Chain Hash",
-          cell: (info) => (
-            <span className="font-mono text-[11px] text-slate-500 whitespace-nowrap">
-              {info.getValue().slice(0, 14)}...
-            </span>
-          ),
-        }),
-        columnHelper.accessor("occurredAt", {
-          header: "Timestamp",
-          cell: (info) => (
-            <span className="font-mono text-xs tabular-nums text-slate-500 whitespace-nowrap">
-              {new Date(info.getValue()).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-              })}
-            </span>
-          ),
-        }),
-      ]),
-    []
-  );
-
-  const table = useTable({
-    features: features,
-    data: filteredEvents,
-    columns,
-  });
-
   const chainResult = verifyMutation.data ?? auditQuery.data?.verification;
 
   return (
@@ -133,7 +44,8 @@ export function AuditLogPage() {
             Immutable Governance Audit Log
           </h1>
           <p className="text-sm text-slate-600 mt-0.5">
-            Append-only SHA-256 hash-chained ledger recording every intake, HITL signature, drift check, and rollback.
+            Append-only SHA-256 hash-chained ledger recording every intake, HITL signature, drift
+            check, and rollback.
           </p>
         </div>
 
@@ -208,35 +120,7 @@ export function AuditLogPage() {
             ))}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                {table.getHeaderGroups().map((hg) => (
-                  <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
-                    {hg.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        className="px-4 py-2.5 text-xs font-semibold text-slate-600 whitespace-nowrap"
-                      >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-sm">
-                {table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    {row.getAllCells().map((cell) => (
-                      <td key={cell.id} className="px-4 py-3 align-middle">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AuditLogTable events={filteredEvents} />
         )}
       </div>
     </div>

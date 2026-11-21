@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   createColumnHelper,
@@ -9,8 +9,9 @@ import {
 } from "@tanstack/react-table";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { BlastRadiusText } from "../components/StatusLabel";
+import { ApprovalModal } from "../components/ui/ApprovalModal";
 import { WorkflowStatusIndicator } from "../components/WorkflowStatusIndicator";
-import { fetchWorkflows } from "../lib/api";
+import { fetchWorkflows, submitWorkflowDecision } from "../lib/api";
 import type { WorkflowRun } from "../shared/contracts";
 
 const features = tableFeatures({});
@@ -19,9 +20,27 @@ const columnHelper = createColumnHelper<typeof features, WorkflowRun>();
 const BLAST_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
 export function ApprovalsPage() {
+  const queryClient = useQueryClient();
+  const [selectedWorkflow, setSelectedWorkflow] = useState<WorkflowRun | null>(null);
+
   const wfQuery = useQuery({
     queryKey: ["workflows"],
     queryFn: fetchWorkflows,
+  });
+
+  const decisionMutation = useMutation({
+    mutationFn: (vars: {
+      workflowId: string;
+      decision: "APPROVE" | "REJECT";
+      rationale: string;
+      simulateProbeFailure: boolean;
+    }) => submitWorkflowDecision(vars),
+    onSuccess: () => {
+      setSelectedWorkflow(null);
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["routes"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+    },
   });
 
   const pendingApprovals = useMemo(() => {
@@ -100,17 +119,29 @@ export function ApprovalsPage() {
           id: "review",
           header: "",
           cell: (info) => (
-            <Link
-              to="/workflows/$workflowId"
-              params={{ workflowId: info.row.original.workflowId }}
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 whitespace-nowrap"
-            >
-              Review & Sign
-            </Link>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  decisionMutation.reset();
+                  setSelectedWorkflow(info.row.original);
+                }}
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-700 rounded-md hover:bg-blue-800 whitespace-nowrap"
+              >
+                Review & Sign
+              </button>
+              <Link
+                to="/workflows/$workflowId"
+                params={{ workflowId: info.row.original.workflowId }}
+                className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+              >
+                Details
+              </Link>
+            </div>
           ),
         }),
       ]),
-    [liveEtag]
+    [liveEtag, decisionMutation]
   );
 
   const table = useTable({
@@ -176,6 +207,32 @@ export function ApprovalsPage() {
           </div>
         )}
       </div>
+
+      {selectedWorkflow && (
+        <ApprovalModal
+          open={Boolean(selectedWorkflow)}
+          onClose={() => setSelectedWorkflow(null)}
+          changePlan={selectedWorkflow.changePlan}
+          blastRadius={selectedWorkflow.blastRadius}
+          appName={selectedWorkflow.appName}
+          hostname={selectedWorkflow.ingressRequest.hostname}
+          pathPrefix={selectedWorkflow.ingressRequest.pathPrefix}
+          environment={selectedWorkflow.environment}
+          executionMode={selectedWorkflow.executionMode}
+          requesterId={selectedWorkflow.requesterId}
+          liveStateEtag={liveEtag}
+          isSubmitting={decisionMutation.isPending}
+          errorMessage={
+            decisionMutation.isError ? (decisionMutation.error as Error).message : null
+          }
+          onSubmitDecision={(payload) =>
+            decisionMutation.mutate({
+              workflowId: selectedWorkflow.workflowId,
+              ...payload,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
