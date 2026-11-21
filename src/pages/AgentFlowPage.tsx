@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, PlayCircle, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { LiveAgentFlowDiagram } from "../components/LiveAgentFlowDiagram";
+import { AgentStudioBuilder } from "../components/agents/AgentStudioBuilder";
 import { StatusBadge } from "../components/ui/StatusBadge";
 import {
   createPolicy,
@@ -223,6 +224,12 @@ export function AgentFlowPage() {
           streamConnected={streamConnected}
         />
       )}
+
+      {/* On-the-Fly Agent Studio & Structured Output Chaining */}
+      <AgentStudioBuilder
+        activeWorkflow={activeWorkflow}
+        onWorkflowUpdated={(wf) => setSelectedWorkflowId(wf.workflowId)}
+      />
 
       {/* Dynamic Policy Rules Studio */}
       <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">

@@ -7,10 +7,28 @@ import type {
   ArchitectureDocPayload,
   AuditEvent,
   ChangePlan,
+  CreateDynamicAgentBlueprintInput,
   CustomPolicyRule,
   DiffHunk,
+  DynamicAgentBlueprint,
   WorkflowRun,
 } from "../src/shared/contracts.ts";
+import {
+  assertReadOnlyBlueprintSecurity,
+  DagValidationError,
+  interpolateUpstreamPrompt,
+  topologicalSortStageAgents,
+  validateAgentDag,
+  validateStructuredOutput,
+} from "./dagEngine.ts";
+
+export {
+  DagValidationError,
+  interpolateUpstreamPrompt,
+  topologicalSortStageAgents,
+  validateAgentDag,
+  validateStructuredOutput,
+};
 
 const DATA_DIR = path.resolve(process.cwd(), "data");
 const STATE_FILE = path.join(DATA_DIR, "control-plane-state.json");
@@ -44,11 +62,89 @@ export const DEFAULT_CUSTOM_POLICY_RULES: CustomPolicyRule[] = [
   },
 ];
 
+export const DEFAULT_DYNAMIC_BLUEPRINTS: DynamicAgentBlueprint[] = [
+  {
+    agentId: "55555555-4444-4000-8000-000000000501",
+    name: "TLSInspectorAgent",
+    role: "Certificate & TLS Posture Inspector",
+    systemPrompt:
+      "You are TLSInspectorAgent under sa-ingress-readonly. Inspect managed TLS certificates, SAN coverage, and expiry windows without modifying infrastructure.",
+    taskTemplate:
+      "Inspect TLS certificate and SAN posture for host {{upstream.DiscoveryAgent.liveEtag}} and verify minimum TLS version and expiry horizon.",
+    hookStage: "PHASE_A_PARALLEL",
+    dependsOn: ["DiscoveryAgent"],
+    outputSchema: [
+      {
+        key: "minTlsVersion",
+        type: "string",
+        description: "Minimum negotiated TLS version (e.g. TLSv1.3)",
+        required: true,
+      },
+      {
+        key: "expiringWithinDays",
+        type: "number",
+        description: "Days until managed certificate expiration",
+        required: true,
+      },
+      {
+        key: "sanCoverageOk",
+        type: "boolean",
+        description: "Whether exact FQDN SAN matches requested hostname",
+        required: true,
+      },
+      {
+        key: "sanList",
+        type: "string[]",
+        description: "List of SAN entries covered by the certificate",
+        required: false,
+      },
+    ],
+    allowedTools: ["get_tls_certs", "get_lb_config"],
+    triggerCondition: { alwaysActive: true },
+    canForceApproval: false,
+    spawnedBy: "OPERATOR",
+    enabled: true,
+    createdAt: "2026-11-20T12:00:00.000Z",
+  },
+  {
+    agentId: "55555555-4444-4000-8000-000000000502",
+    name: "CanaryWeightPlannerAgent",
+    role: "Progressive Canary Rollout Strategist",
+    systemPrompt:
+      "You are CanaryWeightPlannerAgent under sa-ingress-readonly. Compute safe initial canary traffic weight and soak window from upstream TLS expiry and Blast Radius.",
+    taskTemplate:
+      "Given cert expiry in {{upstream.TLSInspectorAgent.expiringWithinDays}} days (TLS {{upstream.TLSInspectorAgent.minTlsVersion}}) and blast radius {{upstream.ImpactAgent.blastRadius}}, recommend initial canary weight and soak duration.",
+    hookStage: "PHASE_B_SEQUENTIAL",
+    dependsOn: ["TLSInspectorAgent", "ImpactAgent"],
+    outputSchema: [
+      {
+        key: "recommendedCanaryPercent",
+        type: "number",
+        description: "Safe initial canary traffic percentage (1-100)",
+        required: true,
+      },
+      {
+        key: "soakMinutes",
+        type: "number",
+        description: "Minimum soak duration in minutes before promotion",
+        required: true,
+      },
+    ],
+    allowedTools: ["list_k8s_routes", "check_route_collisions"],
+    triggerCondition: { alwaysActive: true },
+    canForceApproval: false,
+    spawnedBy: "OPERATOR",
+    enabled: true,
+    createdAt: "2026-11-20T12:01:00.000Z",
+  },
+];
+
 export interface PersistedState {
   routes: ActiveIngressRoute[];
   workflows: WorkflowRun[];
   auditEvents: AuditEvent[];
   customPolicyRules: CustomPolicyRule[];
+  dynamicAgentBlueprints: DynamicAgentBlueprint[];
   driftCounter: number;
 }
 
@@ -623,6 +719,7 @@ function buildInitialState(): PersistedState {
     workflows: [wf1, wf2],
     auditEvents: [],
     customPolicyRules: DEFAULT_CUSTOM_POLICY_RULES.map((r) => ({ ...r })),
+    dynamicAgentBlueprints: DEFAULT_DYNAMIC_BLUEPRINTS.map((bp) => ({ ...bp })),
     driftCounter: 0,
   };
 
@@ -768,6 +865,9 @@ class ControlPlaneStore {
         if (!Array.isArray(parsed.customPolicyRules)) {
           parsed.customPolicyRules = DEFAULT_CUSTOM_POLICY_RULES.map((r) => ({ ...r }));
         }
+        if (!Array.isArray(parsed.dynamicAgentBlueprints)) {
+          parsed.dynamicAgentBlueprints = DEFAULT_DYNAMIC_BLUEPRINTS.map((bp) => ({ ...bp }));
+        }
         return parsed;
       }
     } catch {
@@ -858,6 +958,100 @@ class ControlPlaneStore {
     fs.mkdirSync(docsDir, { recursive: true });
     fs.writeFileSync(PLAN_FILE, markdown, "utf-8");
     return this.getArchitectureDoc();
+  }
+
+  listBlueprints(): DynamicAgentBlueprint[] {
+    return this.state.dynamicAgentBlueprints;
+  }
+
+  createBlueprint(input: CreateDynamicAgentBlueprintInput): DynamicAgentBlueprint {
+    assertReadOnlyBlueprintSecurity({
+      name: input.name,
+      allowedTools: (input.allowedTools ?? []) as DynamicAgentBlueprint["allowedTools"],
+      serviceAccount: input.serviceAccount,
+    });
+
+    const blueprint: DynamicAgentBlueprint = {
+      agentId: crypto.randomUUID(),
+      name: input.name,
+      role: input.role,
+      systemPrompt: input.systemPrompt,
+      taskTemplate: input.taskTemplate,
+      hookStage: input.hookStage,
+      dependsOn: input.dependsOn ?? [],
+      outputSchema: (input.outputSchema ?? []).map((f) => ({
+        ...f,
+        required: f.required ?? true,
+      })),
+      allowedTools: (input.allowedTools ?? []) as DynamicAgentBlueprint["allowedTools"],
+      triggerCondition: input.triggerCondition ?? { alwaysActive: true },
+      canForceApproval: input.canForceApproval ?? false,
+      spawnedBy: input.spawnedBy ?? "OPERATOR",
+      enabled: input.enabled ?? true,
+      createdAt: new Date().toISOString(),
+    };
+
+    const nextRoster = [...this.state.dynamicAgentBlueprints, blueprint];
+    validateAgentDag(nextRoster);
+    this.state.dynamicAgentBlueprints = nextRoster;
+    this.commit();
+    return blueprint;
+  }
+
+  updateBlueprint(
+    agentId: string,
+    patch: Partial<CreateDynamicAgentBlueprintInput>
+  ): DynamicAgentBlueprint {
+    const idx = this.state.dynamicAgentBlueprints.findIndex((b) => b.agentId === agentId);
+    if (idx === -1) {
+      throw new Error("Dynamic agent blueprint not found.");
+    }
+
+    const existing = this.state.dynamicAgentBlueprints[idx];
+    assertReadOnlyBlueprintSecurity({
+      name: patch.name ?? existing.name,
+      allowedTools: (patch.allowedTools ?? existing.allowedTools) as DynamicAgentBlueprint["allowedTools"],
+      serviceAccount: patch.serviceAccount,
+    });
+
+    const updated: DynamicAgentBlueprint = {
+      ...existing,
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.role !== undefined ? { role: patch.role } : {}),
+      ...(patch.systemPrompt !== undefined ? { systemPrompt: patch.systemPrompt } : {}),
+      ...(patch.taskTemplate !== undefined ? { taskTemplate: patch.taskTemplate } : {}),
+      ...(patch.hookStage !== undefined ? { hookStage: patch.hookStage } : {}),
+      ...(patch.dependsOn !== undefined ? { dependsOn: patch.dependsOn } : {}),
+      ...(patch.outputSchema !== undefined
+        ? {
+            outputSchema: patch.outputSchema.map((f) => ({
+              ...f,
+              required: f.required ?? true,
+            })),
+          }
+        : {}),
+      ...(patch.allowedTools !== undefined
+        ? { allowedTools: patch.allowedTools as DynamicAgentBlueprint["allowedTools"] }
+        : {}),
+      ...(patch.triggerCondition !== undefined ? { triggerCondition: patch.triggerCondition } : {}),
+      ...(patch.canForceApproval !== undefined ? { canForceApproval: patch.canForceApproval } : {}),
+      ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
+    };
+
+    const nextRoster = this.state.dynamicAgentBlueprints.slice();
+    nextRoster[idx] = updated;
+    validateAgentDag(nextRoster);
+    this.state.dynamicAgentBlueprints = nextRoster;
+    this.commit();
+    return updated;
+  }
+
+  deleteBlueprint(agentId: string): DynamicAgentBlueprint[] {
+    this.state.dynamicAgentBlueprints = this.state.dynamicAgentBlueprints.filter(
+      (b) => b.agentId !== agentId
+    );
+    this.commit();
+    return this.state.dynamicAgentBlueprints;
   }
 
   saveImplementationProgress(markdown: string): ArchitectureDocPayload {

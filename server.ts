@@ -5,12 +5,18 @@ import dotenv from "dotenv";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import {
+  CORE_AGENT_OUTPUT_FIELDS,
+  CORE_AGENT_STAGE_MAP,
+  CreateDynamicAgentBlueprintInputSchema,
   ExecutionModeSchema,
   IngressRequestSchema,
+  READ_ONLY_TOOL_CATALOG,
   type WorkflowRun,
 } from "./src/shared/contracts.ts";
 import {
+  assignAgentToWorkflow,
   createAndPlanWorkflow,
+  DagValidationError,
   executeManualRollback,
   parseNaturalLanguageIngressRequest,
   processApprovalAndExecute,
@@ -18,12 +24,10 @@ import {
   reviseWorkflowWithAgentFeedback,
   runValidationGates,
 } from "./server/agents.ts";
+import { assertReadOnlyBlueprintSecurity } from "./server/dagEngine.ts";
 import { store, verifyAuditChain } from "./server/store.ts";
 
 dotenv.config();
-
-const app = express();
-app.use(express.json({ limit: "1mb" }));
 
 // SSE Client Registry + Last-Event-ID Replay Buffer (V1-SSE-01)
 type SseClient = { id: string; res: Response };
@@ -31,6 +35,10 @@ type BufferedSseEvent = { id: number; payload: string };
 const sseClients = new Set<SseClient>();
 const sseHistory: BufferedSseEvent[] = [];
 let sseEventCounter = 0;
+
+export function createApp(): express.Express {
+  const app = express();
+  app.use(express.json({ limit: "1mb" }));
 
 function broadcastWorkflowEvent(eventType: string, workflow: WorkflowRun): void {
   sseEventCounter += 1;
@@ -537,6 +545,167 @@ app.put("/api/v1/implementation-progress", (req: Request, res: Response) => {
   res.json(updated);
 });
 
+// Dynamic Agent Blueprints & Runtime Task Router Endpoints
+app.get("/api/v1/agents/blueprints", (_req: Request, res: Response) => {
+  res.json({
+    blueprints: store.listBlueprints(),
+    coreAgentCatalog: {
+      stages: CORE_AGENT_STAGE_MAP,
+      outputs: CORE_AGENT_OUTPUT_FIELDS,
+    },
+    readOnlyToolCatalog: READ_ONLY_TOOL_CATALOG,
+  });
+});
+
+app.post("/api/v1/agents/blueprints", (req: Request, res: Response) => {
+  try {
+    // Check read-only & executor restrictions explicitly first so security errors return 400 with clear code
+    if (req.body && typeof req.body === "object") {
+      assertReadOnlyBlueprintSecurity({
+        name: typeof req.body.name === "string" ? req.body.name : "CustomAgent",
+        allowedTools: Array.isArray(req.body.allowedTools) ? req.body.allowedTools : [],
+        serviceAccount:
+          typeof req.body.serviceAccount === "string" ? req.body.serviceAccount : undefined,
+      });
+    }
+
+    const parsed = CreateDynamicAgentBlueprintInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        code: "INVALID_BLUEPRINT_SCHEMA",
+      });
+      return;
+    }
+
+    const blueprint = store.createBlueprint(parsed.data);
+    res.status(201).json({
+      blueprint,
+      blueprints: store.listBlueprints(),
+    });
+  } catch (err) {
+    if (err instanceof DagValidationError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Failed to create agent blueprint.";
+    res.status(400).json({ error: message });
+  }
+});
+
+app.patch("/api/v1/agents/blueprints/:agentId", (req: Request, res: Response) => {
+  try {
+    if (req.body && typeof req.body === "object" && (req.body.allowedTools || req.body.serviceAccount)) {
+      assertReadOnlyBlueprintSecurity({
+        name: typeof req.body.name === "string" ? req.body.name : req.params.agentId,
+        allowedTools: Array.isArray(req.body.allowedTools) ? req.body.allowedTools : [],
+        serviceAccount:
+          typeof req.body.serviceAccount === "string" ? req.body.serviceAccount : undefined,
+      });
+    }
+    const updated = store.updateBlueprint(req.params.agentId, req.body ?? {});
+    if (!updated) {
+      res.status(404).json({ error: "Agent blueprint not found." });
+      return;
+    }
+    res.json({
+      blueprint: updated,
+      blueprints: store.listBlueprints(),
+    });
+  } catch (err) {
+    if (err instanceof DagValidationError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Failed to update agent blueprint.";
+    res.status(400).json({ error: message });
+  }
+});
+
+app.delete("/api/v1/agents/blueprints/:agentId", (req: Request, res: Response) => {
+  const removed = store.deleteBlueprint(req.params.agentId);
+  if (!removed) {
+    res.status(404).json({ error: "Agent blueprint not found." });
+    return;
+  }
+  res.json({
+    deletedAgentId: req.params.agentId,
+    blueprints: store.listBlueprints(),
+  });
+});
+
+const AssignAgentBodySchema = z
+  .object({
+    blueprintId: z.string().min(1).optional(),
+    adHocBlueprint: CreateDynamicAgentBlueprintInputSchema.optional(),
+    saveToRoster: z.boolean().optional().default(false),
+  })
+  .refine((v) => Boolean(v.blueprintId || v.adHocBlueprint), {
+    message: "Provide either blueprintId or adHocBlueprint.",
+  });
+
+app.post("/api/v1/workflows/:workflowId/assign-agent", async (req: Request, res: Response) => {
+  const { operatorId } = getOperatorFromHeaders(req);
+  try {
+    if (req.body?.adHocBlueprint && typeof req.body.adHocBlueprint === "object") {
+      assertReadOnlyBlueprintSecurity({
+        name:
+          typeof req.body.adHocBlueprint.name === "string"
+            ? req.body.adHocBlueprint.name
+            : "AdHocAgent",
+        allowedTools: Array.isArray(req.body.adHocBlueprint.allowedTools)
+          ? req.body.adHocBlueprint.allowedTools
+          : [],
+        serviceAccount:
+          typeof req.body.adHocBlueprint.serviceAccount === "string"
+            ? req.body.adHocBlueprint.serviceAccount
+            : undefined,
+      });
+    }
+
+    const parsed = AssignAgentBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        code: "INVALID_ASSIGN_REQUEST",
+      });
+      return;
+    }
+
+    let blueprintId = parsed.data.blueprintId;
+    if (!blueprintId && parsed.data.adHocBlueprint && parsed.data.saveToRoster) {
+      const created = store.createBlueprint(parsed.data.adHocBlueprint);
+      blueprintId = created.agentId;
+    }
+
+    const workflow = await assignAgentToWorkflow({
+      workflowId: req.params.workflowId,
+      actorId: operatorId,
+      blueprintId,
+      adHocBlueprint: blueprintId ? undefined : parsed.data.adHocBlueprint,
+      onEvent: broadcastWorkflowEvent,
+    });
+
+    res.json({
+      liveStateEtag: store.getLiveEtag(),
+      workflow,
+    });
+  } catch (err) {
+    if (err instanceof DagValidationError) {
+      res.status(400).json({ error: err.message, code: err.code });
+      return;
+    }
+    const message = err instanceof Error ? err.message : "Failed to assign agent to workflow.";
+    const status = message.toLowerCase().includes("not found") ? 404 : 400;
+    res.status(status).json({ error: message });
+  }
+});
+
+return app;
+}
+
+const app = createApp();
+
 async function startServer() {
   const port = 3000;
   const isProd = process.env.NODE_ENV === "production";
@@ -566,4 +735,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VITEST) {
+  startServer();
+}

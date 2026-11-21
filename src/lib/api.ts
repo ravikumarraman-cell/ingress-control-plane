@@ -2,10 +2,15 @@ import type {
   ActiveIngressRoute,
   ArchitectureDocPayload,
   AuditEvent,
+  CreateDynamicAgentBlueprintInput,
   CustomPolicyRule,
+  DynamicAgentBlueprint,
   ExecutionMode,
   OperatorIdentity,
+  OutputFieldDefinition,
+  ReadOnlyToolId,
   ValidationGateResult,
+  WorkflowHookStage,
   WorkflowPipelineConfig,
   WorkflowRun,
 } from "../shared/contracts";
@@ -320,5 +325,81 @@ export async function runValidationSuite(): Promise<{ results: ValidationGateRes
     method: "POST",
     headers: buildHeaders(),
   });
+  return handleJson(res);
+}
+
+export interface AgentBlueprintsResponse {
+  blueprints: DynamicAgentBlueprint[];
+  coreAgentCatalog: {
+    stages: Record<string, WorkflowHookStage>;
+    outputs: Array<{
+      agentName: string;
+      stage: WorkflowHookStage;
+      fields: Array<{ key: string; type: OutputFieldDefinition["type"]; description: string }>;
+    }>;
+  };
+  readOnlyToolCatalog: Array<{
+    id: ReadOnlyToolId;
+    label: string;
+    description: string;
+  }>;
+}
+
+export async function fetchAgentBlueprints(): Promise<AgentBlueprintsResponse> {
+  const res = await fetch("/api/v1/agents/blueprints", { headers: buildHeaders() });
+  return handleJson(res);
+}
+
+export async function createAgentBlueprint(
+  body: CreateDynamicAgentBlueprintInput
+): Promise<{ blueprint: DynamicAgentBlueprint; blueprints: DynamicAgentBlueprint[] }> {
+  const res = await fetch("/api/v1/agents/blueprints", {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(body),
+  });
+  return handleJson(res);
+}
+
+export async function updateAgentBlueprint(
+  agentId: string,
+  patch: Partial<DynamicAgentBlueprint>
+): Promise<{ blueprint: DynamicAgentBlueprint; blueprints: DynamicAgentBlueprint[] }> {
+  const res = await fetch(`/api/v1/agents/blueprints/${encodeURIComponent(agentId)}`, {
+    method: "PATCH",
+    headers: buildHeaders(),
+    body: JSON.stringify(patch),
+  });
+  return handleJson(res);
+}
+
+export async function deleteAgentBlueprint(
+  agentId: string
+): Promise<{ deletedAgentId: string; blueprints: DynamicAgentBlueprint[] }> {
+  const res = await fetch(`/api/v1/agents/blueprints/${encodeURIComponent(agentId)}`, {
+    method: "DELETE",
+    headers: buildHeaders(),
+  });
+  return handleJson(res);
+}
+
+export async function assignAgentToWorkflow(params: {
+  workflowId: string;
+  blueprintId?: string;
+  adHocBlueprint?: CreateDynamicAgentBlueprintInput;
+  saveToRoster?: boolean;
+}): Promise<{ liveStateEtag: string; workflow: WorkflowRun }> {
+  const res = await fetch(
+    `/api/v1/workflows/${encodeURIComponent(params.workflowId)}/assign-agent`,
+    {
+      method: "POST",
+      headers: buildHeaders(),
+      body: JSON.stringify({
+        blueprintId: params.blueprintId,
+        adHocBlueprint: params.adHocBlueprint,
+        saveToRoster: Boolean(params.saveToRoster),
+      }),
+    }
+  );
   return handleJson(res);
 }

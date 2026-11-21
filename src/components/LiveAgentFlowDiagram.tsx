@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -19,10 +19,20 @@ import {
   ShieldCheck,
   SkipBack,
   SkipForward,
+  Sparkles,
   UserCheck,
   XCircle,
 } from "lucide-react";
-import type { WorkflowRun } from "../shared/contracts";
+import type {
+  DynamicAgentBlueprint,
+  DynamicTaskAssignment,
+  WorkflowHookStage,
+  WorkflowRun,
+} from "../shared/contracts";
+import {
+  AgentHandoffDrawer,
+  type AgentHandoffInspectorTarget,
+} from "./agents/AgentHandoffDrawer";
 
 export type AgentNodeId =
   | "intake"
@@ -518,6 +528,72 @@ export interface LiveAgentFlowDiagramProps {
   compact?: boolean;
 }
 
+interface DagEdgeGeometry {
+  id: string;
+  fromName: string;
+  toName: string;
+  path: string;
+  labelX: number;
+  labelY: number;
+  active: boolean;
+  vetoed: boolean;
+}
+
+const CORE_CANONICAL_NAMES = new Set([
+  "IngressIntakeAgent",
+  "SupervisorAgent",
+  "DiscoveryInventoryAgent",
+  "PolicyComplianceAgent",
+  "ImpactAnalysisAgent",
+  "ChangePlanningAgent",
+  "ValidationRollbackAgent",
+  "HITLApprovalGate",
+  "ApprovalGate",
+  "AdvisoryGate",
+  "ExecutionAgent",
+  "ExecutionRolloutAgent",
+  "HealthProbeAgent",
+]);
+
+function dynamicStatusStyles(status: DynamicTaskAssignment["status"]): {
+  card: string;
+  labelText: string;
+  labelClass: string;
+} {
+  switch (status) {
+    case "COMPLETED":
+      return {
+        card: "bg-emerald-50/40 border-emerald-300",
+        labelText: "Completed",
+        labelClass: "text-emerald-700",
+      };
+    case "RUNNING":
+      return {
+        card: "bg-blue-50/70 border-blue-500 ring-2 ring-blue-500/20",
+        labelText: "Running",
+        labelClass: "text-blue-700",
+      };
+    case "SKIPPED_UPSTREAM_FAILED":
+      return {
+        card: "bg-red-50/60 border-red-300 opacity-90",
+        labelText: "Skipped (Upstream Veto)",
+        labelClass: "text-red-700",
+      };
+    case "VETOED":
+      return {
+        card: "bg-red-50/70 border-red-400",
+        labelText: "Vetoed",
+        labelClass: "text-red-700",
+      };
+    default:
+      return {
+        card: "bg-slate-50 border-slate-200",
+        labelText: "Pending",
+        labelClass: "text-slate-600",
+      };
+  }
+}
+
 export function LiveAgentFlowDiagram({
   workflow,
   liveEtag,
@@ -527,6 +603,24 @@ export function LiveAgentFlowDiagram({
   const [selectedAgentId, setSelectedAgentId] = useState<AgentNodeId>("supervisor");
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [drawerTarget, setDrawerTarget] = useState<AgentHandoffInspectorTarget | null>(null);
+
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const nodeElementMapRef = useRef<Map<string, HTMLElement>>(new Map());
+  const [dagEdges, setDagEdges] = useState<DagEdgeGeometry[]>([]);
+
+  const registerNodeRef = useCallback(
+    (names: string[]) => (el: HTMLElement | null) => {
+      for (const n of names) {
+        if (el) {
+          nodeElementMapRef.current.set(n, el);
+        } else {
+          nodeElementMapRef.current.delete(n);
+        }
+      }
+    },
+    []
+  );
 
   // Auto-select the most relevant agent when workflow status updates live via SSE
   useEffect(() => {
@@ -586,6 +680,124 @@ export function LiveAgentFlowDiagram({
     return traces.length > 0 ? traces[traces.length - 1] : null;
   }, [workflow, selectedGuide]);
 
+  const assignmentsByStage = useMemo(() => {
+    const grouped: Record<WorkflowHookStage, DynamicTaskAssignment[]> = {
+      PRE_INTAKE: [],
+      PHASE_A_PARALLEL: [],
+      PHASE_B_SEQUENTIAL: [],
+      POST_VERIFY: [],
+    };
+    if (!workflow) return grouped;
+
+    const assignments = workflow.dynamicTaskAssignments ?? [];
+    for (const a of assignments) {
+      grouped[a.hookStage]?.push(a);
+    }
+    return grouped;
+  }, [workflow]);
+
+  const blueprintByName = useMemo(() => {
+    const map = new Map<string, DynamicAgentBlueprint>();
+    for (const bp of workflow?.spawnedAgents ?? []) {
+      map.set(bp.name, bp);
+    }
+    return map;
+  }, [workflow?.spawnedAgents]);
+
+  const openAgentDrawer = useCallback(
+    (agentName: string) => {
+      const assignment =
+        workflow?.dynamicTaskAssignments?.find((a) => a.agentName === agentName) ?? null;
+      const blueprint = blueprintByName.get(agentName) ?? null;
+      const contextOutput = workflow?.sharedContextBus?.[agentName] ?? null;
+      setDrawerTarget({
+        agentName,
+        hookStage: assignment?.hookStage ?? blueprint?.hookStage,
+        assignment,
+        blueprint,
+        contextOutput,
+      });
+    },
+    [workflow, blueprintByName]
+  );
+
+  const recomputeDagEdges = useCallback(() => {
+    const container = canvasRef.current;
+    if (!container || !workflow) {
+      setDagEdges([]);
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const assignments = workflow.dynamicTaskAssignments ?? [];
+    const nextEdges: DagEdgeGeometry[] = [];
+
+    for (const a of assignments) {
+      const targetEl = nodeElementMapRef.current.get(a.agentName);
+      if (!targetEl) continue;
+      const tRect = targetEl.getBoundingClientRect();
+
+      for (const depName of a.dependsOn) {
+        const sourceEl = nodeElementMapRef.current.get(depName);
+        if (!sourceEl) continue;
+        const sRect = sourceEl.getBoundingClientRect();
+
+        const sameColumn = Math.abs(sRect.left - tRect.left) < 40;
+        let x1: number;
+        let y1: number;
+        let x2: number;
+        let y2: number;
+
+        if (sameColumn) {
+          x1 = sRect.left + sRect.width / 2 - containerRect.left;
+          y1 = sRect.bottom - containerRect.top;
+          x2 = tRect.left + tRect.width / 2 - containerRect.left;
+          y2 = tRect.top - containerRect.top;
+        } else {
+          x1 = sRect.right - containerRect.left;
+          y1 = sRect.top + sRect.height / 2 - containerRect.top;
+          x2 = tRect.left - containerRect.left;
+          y2 = tRect.top + tRect.height / 2 - containerRect.top;
+        }
+
+        const dx = Math.max(28, Math.abs(x2 - x1) * 0.45);
+        const path = sameColumn
+          ? `M ${x1} ${y1} C ${x1 + 24} ${y1 + 20}, ${x2 + 24} ${y2 - 20}, ${x2} ${y2}`
+          : `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+        const upstreamOut = workflow.sharedContextBus?.[depName];
+        const vetoed =
+          Boolean(upstreamOut?.vetoTriggered) || a.status === "SKIPPED_UPSTREAM_FAILED";
+        const active = a.status === "COMPLETED" || a.status === "RUNNING";
+
+        nextEdges.push({
+          id: `${depName}->${a.agentName}`,
+          fromName: depName,
+          toName: a.agentName,
+          path,
+          labelX: (x1 + x2) / 2,
+          labelY: (y1 + y2) / 2,
+          active,
+          vetoed,
+        });
+      }
+    }
+
+    setDagEdges(nextEdges);
+  }, [workflow]);
+
+  useLayoutEffect(() => {
+    recomputeDagEdges();
+    const container = canvasRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => recomputeDagEdges());
+    observer.observe(container);
+    window.addEventListener("resize", recomputeDagEdges);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recomputeDagEdges);
+    };
+  }, [recomputeDagEdges, replayIndex, selectedAgentId]);
+
   const handleTogglePlay = () => {
     if (isPlaying) {
       setIsPlaying(false);
@@ -613,10 +825,11 @@ export function LiveAgentFlowDiagram({
     return (
       <button
         key={id}
+        ref={registerNodeRef([meta.title, ...meta.traceNames])}
         type="button"
         onClick={() => setSelectedAgentId(id)}
         aria-pressed={isSelected}
-        className={`w-full text-left rounded-lg border p-3.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
+        className={`relative z-10 w-full text-left rounded-lg border p-3.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
           styles.card
         } ${
           isSelected
@@ -653,6 +866,69 @@ export function LiveAgentFlowDiagram({
         </div>
       </button>
     );
+  };
+
+  const renderDynamicStageCards = (stage: WorkflowHookStage) => {
+    const items = assignmentsByStage[stage];
+    if (!items || items.length === 0) return null;
+
+    return items.map((assignment) => {
+      const bp = blueprintByName.get(assignment.agentName);
+      const dStyles = dynamicStatusStyles(assignment.status);
+      const vetoed =
+        Boolean(assignment.structuredOutput?.vetoTriggered) || assignment.status === "VETOED";
+
+      return (
+        <button
+          key={assignment.taskId}
+          ref={registerNodeRef([assignment.agentName])}
+          type="button"
+          onClick={() => openAgentDrawer(assignment.agentName)}
+          className={`relative z-10 w-full text-left rounded-lg border p-3 transition-all hover:border-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${dStyles.card}`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] font-mono text-slate-500 flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-blue-700 shrink-0" />
+                <span>{bp?.spawnedBy ?? "DYNAMIC"} · {assignment.hookStage}</span>
+              </div>
+              <div className="text-xs font-semibold font-mono text-slate-900 truncate mt-0.5">
+                {assignment.agentName}
+              </div>
+            </div>
+            {vetoed ? (
+              <AlertTriangle className="h-3.5 w-3.5 text-red-600 shrink-0" />
+            ) : assignment.status === "COMPLETED" ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+            ) : assignment.status === "SKIPPED_UPSTREAM_FAILED" ? (
+              <ShieldAlert className="h-3.5 w-3.5 text-red-700 shrink-0" />
+            ) : (
+              <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            )}
+          </div>
+
+          {assignment.dependsOn.length > 0 && (
+            <div className="text-[10px] font-mono text-slate-500 mt-1 truncate">
+              ← {assignment.dependsOn.join(", ")}
+            </div>
+          )}
+
+          <p className="text-[11px] text-slate-600 mt-1.5 line-clamp-2 leading-snug">
+            {assignment.structuredOutput?.summary ??
+              assignment.resolvedTaskPrompt ??
+              bp?.role ??
+              "Queued in dynamic DAG"}
+          </p>
+
+          <div className="mt-2 pt-1.5 border-t border-slate-200/70 flex items-center justify-between text-[10px]">
+            <span className={`font-medium ${dStyles.labelClass}`}>
+              {vetoed ? "Veto Triggered" : dStyles.labelText}
+            </span>
+            <span className="font-mono text-blue-700">Inspect Handoff →</span>
+          </div>
+        </button>
+      );
+    });
   };
 
   const activeReplayStep = replayIndex !== null ? REPLAY_STEPS[replayIndex] : null;
@@ -823,7 +1099,7 @@ export function LiveAgentFlowDiagram({
             </div>
           </div>
 
-          {/* 5-Column Visual Flow Pipeline */}
+          {/* 5-Column Visual Flow Pipeline + Dynamic DAG SVG Connector Overlay */}
           <div className="min-w-[780px] space-y-4">
             {/* Row 1: Stage Column Headers */}
             <div className="grid grid-cols-5 gap-3 text-[11px] font-medium text-slate-500 px-1">
@@ -834,10 +1110,62 @@ export function LiveAgentFlowDiagram({
               <div>5. Scoped Execution</div>
             </div>
 
-            {/* Row 2: Flow Nodes & Animated Arrows */}
-            <div className="grid grid-cols-5 gap-3 items-center">
-              {/* Column 1: Intake -> Supervisor */}
+            {/* Row 2: Flow Nodes & Animated SVG DAG Edges */}
+            <div ref={canvasRef} className="relative grid grid-cols-5 gap-3 items-start">
+              {/* SVG Directed Dependency Overlay */}
+              {dagEdges.length > 0 && (
+                <svg
+                  className="pointer-events-none absolute inset-0 w-full h-full z-0"
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <marker
+                      id="dag-arrow-blue"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#1d4ed8" />
+                    </marker>
+                    <marker
+                      id="dag-arrow-red"
+                      viewBox="0 0 10 10"
+                      refX="8"
+                      refY="5"
+                      markerWidth="6"
+                      markerHeight="6"
+                      orient="auto-start-reverse"
+                    >
+                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#dc2626" />
+                    </marker>
+                  </defs>
+                  {dagEdges.map((edge) => (
+                    <g key={edge.id}>
+                      <path
+                        d={edge.path}
+                        fill="none"
+                        stroke={edge.vetoed ? "#dc2626" : edge.active ? "#1d4ed8" : "#94a3b8"}
+                        strokeWidth={edge.active ? 2 : 1.5}
+                        strokeDasharray={edge.vetoed ? "4 3" : undefined}
+                        markerEnd={edge.vetoed ? "url(#dag-arrow-red)" : "url(#dag-arrow-blue)"}
+                        opacity={0.75}
+                      />
+                      {edge.active && !edge.vetoed && (
+                        <circle r="3" fill="#2563eb">
+                          <animateMotion dur="2.2s" repeatCount="indefinite" path={edge.path} />
+                        </circle>
+                      )}
+                    </g>
+                  ))}
+                </svg>
+              )}
+
+              {/* Column 1: Intake -> Supervisor (+ PRE_INTAKE dynamic agents) */}
               <div className="space-y-2.5">
+                {renderDynamicStageCards("PRE_INTAKE")}
                 {renderAgentCard("intake")}
                 <div className="flex justify-center text-slate-400">
                   <div className="flex flex-col items-center">
@@ -852,7 +1180,7 @@ export function LiveAgentFlowDiagram({
                 {renderAgentCard("supervisor")}
               </div>
 
-              {/* Column 2: Phase A Parallel Workers */}
+              {/* Column 2: Phase A Parallel Workers (+ PHASE_A_PARALLEL dynamic agents) */}
               <div className="space-y-2.5 relative">
                 <div className="text-[10px] font-medium text-slate-500 text-center bg-slate-50 border border-slate-200 rounded py-1">
                   Run Simultaneously (sa-ingress-readonly)
@@ -860,15 +1188,15 @@ export function LiveAgentFlowDiagram({
                 {renderAgentCard("discovery")}
                 {renderAgentCard("policy")}
                 {renderAgentCard("impact")}
+                {renderDynamicStageCards("PHASE_A_PARALLEL")}
                 {workflow?.agentTraces
                   .filter(
                     (tr) =>
                       tr.phase === "PHASE_A_PARALLEL" &&
-                      ![
-                        "DiscoveryInventoryAgent",
-                        "PolicyComplianceAgent",
-                        "ImpactAnalysisAgent",
-                      ].includes(tr.agentName)
+                      !CORE_CANONICAL_NAMES.has(tr.agentName) &&
+                      !assignmentsByStage.PHASE_A_PARALLEL.some(
+                        (a) => a.agentName === tr.agentName
+                      )
                   )
                   .map((extra, idx) => (
                     <div
@@ -890,7 +1218,7 @@ export function LiveAgentFlowDiagram({
                   ))}
               </div>
 
-              {/* Column 3: Phase B Sequential */}
+              {/* Column 3: Phase B Sequential (+ PHASE_B_SEQUENTIAL dynamic agents) */}
               <div className="space-y-2.5">
                 <div className="text-[10px] font-medium text-slate-500 text-center bg-slate-50 border border-slate-200 rounded py-1">
                   Fan-In Sequential Build
@@ -907,6 +1235,7 @@ export function LiveAgentFlowDiagram({
                   </div>
                 </div>
                 {renderAgentCard("rollback")}
+                {renderDynamicStageCards("PHASE_B_SEQUENTIAL")}
               </div>
 
               {/* Column 4: HITL Gate */}
@@ -926,12 +1255,13 @@ export function LiveAgentFlowDiagram({
                 </div>
               </div>
 
-              {/* Column 5: Execution & Probe */}
+              {/* Column 5: Execution & Probe (+ POST_VERIFY dynamic agents) */}
               <div className="space-y-2.5">
                 <div className="text-[10px] font-medium text-slate-500 text-center bg-slate-50 border border-slate-200 rounded py-1">
                   ETag Re-Check + Probe
                 </div>
                 {renderAgentCard("execution")}
+                {renderDynamicStageCards("POST_VERIFY")}
                 <div className="p-2.5 rounded-md border border-slate-200 bg-slate-50 text-[11px] text-slate-600 space-y-1">
                   <div className="font-semibold text-slate-800 flex items-center gap-1">
                     <RotateCcw className="h-3 w-3 text-slate-500" />
@@ -945,14 +1275,12 @@ export function LiveAgentFlowDiagram({
             </div>
 
             {/* Animated Live Handoff Signal Bar */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
+            <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <ArrowRight className="h-3.5 w-3.5 text-blue-700 shrink-0" />
                 <span>
                   <strong className="text-slate-800 font-medium">Data Handoff Flow:</strong>{" "}
-                  Read-only workers never gain write keys. Only{" "}
-                  <span className="font-mono text-slate-700">ExecutionAgent</span> unlocks scoped write
-                  tools after a verified HMAC token.
+                  Read-only workers never gain write keys. Dynamic DAG links ({dagEdges.length} active) pass typed JSON outputs downstream.
                 </span>
               </div>
             </div>
@@ -1062,6 +1390,16 @@ export function LiveAgentFlowDiagram({
                     : `Current workflow status is ${workflow.status}. Select an active or completed step to view recorded trace output.`}
                 </div>
 
+                  {workflow.sharedContextBus?.[selectedGuide.title] && (
+                    <button
+                      type="button"
+                      onClick={() => openAgentDrawer(selectedGuide.title)}
+                      className="text-xs font-mono text-blue-700 hover:underline"
+                    >
+                      View Structured Context Output →
+                    </button>
+                  )}
+
                 {!compact && (
                   <div className="pt-1 flex items-center justify-between gap-2">
                     <Link
@@ -1098,35 +1436,58 @@ export function LiveAgentFlowDiagram({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {workflow.agentTraces.map((tr, idx) => (
-              <div
-                key={`${tr.agentName}-${idx}`}
-                className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono tabular-nums text-slate-400 w-5 shrink-0">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <span className="font-semibold text-slate-900 whitespace-nowrap">
-                    {tr.agentName}
-                  </span>
-                  <span className="text-slate-400" aria-hidden="true">
-                    ·
-                  </span>
-                  <span className="text-slate-600 truncate">{tr.summary}</span>
+            {workflow.agentTraces.map((tr, idx) => {
+              const hasStructured = Boolean(
+                workflow.sharedContextBus?.[tr.agentName] ||
+                  workflow.dynamicTaskAssignments?.some((a) => a.agentName === tr.agentName)
+              );
+              return (
+                <div
+                  key={`${tr.agentName}-${idx}`}
+                  className="py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono tabular-nums text-slate-400 w-5 shrink-0">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    {hasStructured ? (
+                      <button
+                        type="button"
+                        onClick={() => openAgentDrawer(tr.agentName)}
+                        className="font-semibold text-blue-700 hover:underline whitespace-nowrap"
+                      >
+                        {tr.agentName}
+                      </button>
+                    ) : (
+                      <span className="font-semibold text-slate-900 whitespace-nowrap">
+                        {tr.agentName}
+                      </span>
+                    )}
+                    <span className="text-slate-400" aria-hidden="true">
+                      ·
+                    </span>
+                    <span className="text-slate-600 truncate">{tr.summary}</span>
+                  </div>
+                  <div className="flex items-center gap-3 font-mono text-[11px] text-slate-500 shrink-0 tabular-nums">
+                    <span>{tr.accessMode}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{tr.status}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{tr.durationMs ? `${tr.durationMs}ms` : "waiting"}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 font-mono text-[11px] text-slate-500 shrink-0 tabular-nums">
-                  <span>{tr.accessMode}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{tr.status}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{tr.durationMs ? `${tr.durationMs}ms` : "waiting"}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Handoff & Context Bus Slide-Over Drawer */}
+      <AgentHandoffDrawer
+        target={drawerTarget}
+        onClose={() => setDrawerTarget(null)}
+        onSelectUpstreamAgent={(depName) => openAgentDrawer(depName)}
+      />
     </div>
   );
 }

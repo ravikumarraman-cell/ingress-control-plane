@@ -1,8 +1,13 @@
 import crypto from "node:crypto";
 import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 import {
+  AgentStructuredOutput,
   containsEmbeddedSecret,
+  CreateDynamicAgentBlueprintInput,
+  DynamicAgentBlueprint,
+  DynamicTaskAssignment,
   IngressRequestSchema,
+  MAX_DYNAMIC_AGENTS_PER_WORKFLOW,
   type ActiveIngressRoute,
   type AgentStepTrace,
   type ApprovalDecision,
@@ -14,6 +19,20 @@ import {
   type WorkflowRun,
 } from "../src/shared/contracts.ts";
 import {
+  assertReadOnlyBlueprintSecurity,
+  DagValidationError,
+  interpolateUpstreamPrompt,
+  topologicalSortStageAgents,
+  validateAgentDag,
+  validateStructuredOutput,
+} from "./dagEngine.ts";
+import {
+  executeStageDynamicAgents,
+  maybeCreateSupervisorSpawnedChain,
+  selectActiveBlueprintsForWorkflow,
+} from "./dagRunner.ts";
+import {
+  appendAuditEventInMemory,
   computePlanDigest,
   computeUnifiedDiff,
   renderRouteYaml,
@@ -27,6 +46,14 @@ import type {
   ValidationGateResult,
   WorkflowPipelineConfig,
 } from "../src/shared/contracts.ts";
+
+export {
+  DagValidationError,
+  interpolateUpstreamPrompt,
+  topologicalSortStageAgents,
+  validateAgentDag,
+  validateStructuredOutput,
+};
 
 export const DEFAULT_PIPELINE_CONFIG: WorkflowPipelineConfig = {
   hitlPolicy: "always",
@@ -359,12 +386,29 @@ Give a concise 1-sentence factual advisory finding (max 140 chars).`,
   return `Evaluated "${instruction.slice(0, 72)}" against ${req.hostname}${req.pathPrefix} (${req.environment}/${req.tlsProfile}) — Advisory OK.`;
 }
 
+function elevateBlastRadius(
+  current: BlastRadiusScore,
+  outputs: AgentStructuredOutput[]
+): BlastRadiusScore {
+  let score: BlastRadiusScore = current;
+  for (const out of outputs) {
+    if (out.riskDelta === "ELEVATE_HIGH" || out.vetoTriggered) {
+      return "HIGH";
+    }
+    if (out.riskDelta === "ELEVATE_MEDIUM" && score === "LOW") {
+      score = "MEDIUM";
+    }
+  }
+  return score;
+}
+
 async function buildPlanAndTraces(params: {
   workflowId: string;
   request: IngressRequest;
   executionMode: ExecutionMode;
   pipelineConfig: WorkflowPipelineConfig;
   iteration: number;
+  extraBlueprints?: DynamicAgentBlueprint[];
 }): Promise<{
   liveEtag: string;
   blastRadius: BlastRadiusScore;
@@ -372,17 +416,234 @@ async function buildPlanAndTraces(params: {
   traces: AgentStepTrace[];
   status: WorkflowRun["status"];
   autoApprovedDecision: ApprovalDecision | null;
+  dynamicTaskAssignments: DynamicTaskAssignment[];
+  spawnedAgents: DynamicAgentBlueprint[];
+  sharedContextBus: Record<string, AgentStructuredOutput>;
+  pendingHandoffAudits: Array<{
+    actorId: string;
+    eventType: string;
+    payload: Record<string, unknown>;
+    assignRef?: DynamicTaskAssignment;
+  }>;
 }> {
   const state = store.getState();
   const now = new Date().toISOString();
   const liveEtag = store.getLiveEtag();
   const enabled = new Set(params.pipelineConfig.enabledAgents);
 
-  const { checks, violations, blastRadius, collidingRoute } = evaluatePolicies(
+  const { checks, violations, blastRadius: baseBlastRadius, collidingRoute } = evaluatePolicies(
     params.request,
     state.routes,
     state.customPolicyRules
   );
+
+  const sharedContextBus: Record<string, AgentStructuredOutput> = {};
+  const dynamicTaskAssignments: DynamicTaskAssignment[] = [];
+  const pendingHandoffAudits: Array<{
+    actorId: string;
+    eventType: string;
+    payload: Record<string, unknown>;
+    assignRef?: DynamicTaskAssignment;
+  }> = [];
+
+  // Select eligible reusable blueprints + any workflow-scoped blueprints (max 4)
+  const baseActiveBlueprints = selectActiveBlueprintsForWorkflow(
+    store.listBlueprints(),
+    params.request,
+    params.extraBlueprints ?? []
+  );
+
+  // Autonomous Supervisor Chained Spawning on high-risk prod + external combinations
+  const supervisorSpawned = maybeCreateSupervisorSpawnedChain({
+    request: params.request,
+    checks,
+    hasCollision: Boolean(collidingRoute),
+    existingBlueprints: baseActiveBlueprints,
+  });
+
+  const activeBlueprints = [...baseActiveBlueprints, ...supervisorSpawned].slice(
+    0,
+    MAX_DYNAMIC_AGENTS_PER_WORKFLOW
+  );
+
+  if (supervisorSpawned.length > 0) {
+    pendingHandoffAudits.push({
+      actorId: "SupervisorAgent",
+      eventType: "SUPERVISOR_SPAWNED_CHAIN",
+      payload: {
+        spawnedAgents: supervisorSpawned.map((a) => ({
+          name: a.name,
+          hookStage: a.hookStage,
+          dependsOn: a.dependsOn,
+        })),
+        reason: "High-risk external prod change with warning or live route collision",
+      },
+    });
+  }
+
+  const recordStageHandoffs = (assignments: DynamicTaskAssignment[]) => {
+    for (const assignment of assignments) {
+      dynamicTaskAssignments.push(assignment);
+      pendingHandoffAudits.push({
+        actorId: assignment.agentName,
+        eventType:
+          assignment.status === "SKIPPED_UPSTREAM_FAILED"
+            ? "AGENT_HANDOFF_SKIPPED"
+            : assignment.status === "VETOED"
+              ? "AGENT_VETO_ESCALATION"
+              : "AGENT_HANDOFF",
+        payload: {
+          taskId: assignment.taskId,
+          hookStage: assignment.hookStage,
+          dependsOn: assignment.dependsOn,
+          status: assignment.status,
+          consumedInputKeys: Object.keys(assignment.consumedInputs),
+          outputSummary: assignment.structuredOutput?.summary ?? null,
+          riskDelta: assignment.structuredOutput?.riskDelta ?? "NONE",
+          vetoTriggered: assignment.structuredOutput?.vetoTriggered ?? false,
+        },
+        assignRef: assignment,
+      });
+    }
+  };
+
+  // Stage 0: PRE_INTAKE core context + dynamic hooks
+  const intakeOutput: AgentStructuredOutput = {
+    summary: `Validated IngressRequest for ${params.request.appName} (${params.request.environment}).`,
+    data: {
+      appName: params.request.appName,
+      environment: params.request.environment,
+      hostname: params.request.hostname,
+      pathPrefix: params.request.pathPrefix,
+      exposure: params.request.exposure,
+      tlsProfile: params.request.tlsProfile,
+      backendPort: params.request.backendPort,
+    },
+    riskDelta: "NONE",
+    vetoTriggered: false,
+    confidence: 1,
+  };
+  sharedContextBus.IngressIntakeAgent = intakeOutput;
+
+  const preIntakeOutcome = await executeStageDynamicAgents({
+    stage: "PRE_INTAKE",
+    blueprints: activeBlueprints,
+    request: params.request,
+    sharedContextBus,
+  });
+  recordStageHandoffs(preIntakeOutcome.assignments);
+
+  // Stage 1: PHASE_A_PARALLEL core outputs + dynamic parallel waves
+  const dryRunBaselinePass = violations.length === 0;
+  const discoveryOutput: AgentStructuredOutput = {
+    summary: `Snapshotted ${state.routes.length} routes; pinned ETag ${liveEtag.slice(0, 18)}...`,
+    data: {
+      liveEtag,
+      routeCount: state.routes.length,
+      collidingRouteId: collidingRoute?.routeId ?? "",
+    },
+    riskDelta: "NONE",
+    vetoTriggered: false,
+    confidence: 1,
+  };
+  sharedContextBus.DiscoveryInventoryAgent = discoveryOutput;
+  sharedContextBus.DiscoveryAgent = discoveryOutput;
+
+  const policyOutput: AgentStructuredOutput = {
+    summary: `${checks.filter((c) => c.passed).length}/${checks.length} compliance controls passed.`,
+    data: {
+      passedCount: checks.filter((c) => c.passed).length,
+      totalCount: checks.length,
+      violations,
+      summary: {
+        decision: dryRunBaselinePass ? "ALLOW" : "BLOCK",
+      },
+    },
+    riskDelta: dryRunBaselinePass ? "NONE" : "ELEVATE_HIGH",
+    vetoTriggered: !dryRunBaselinePass,
+    confidence: 1,
+  };
+  sharedContextBus.PolicyComplianceAgent = policyOutput;
+  sharedContextBus.PolicyAgent = policyOutput;
+
+  const impactOutput: AgentStructuredOutput = {
+    summary: `Computed BlastRadiusScore: ${baseBlastRadius}.`,
+    data: {
+      blastRadius: baseBlastRadius,
+      collidingRouteId: collidingRoute?.routeId ?? "",
+      hasCollision: Boolean(collidingRoute),
+    },
+    riskDelta: baseBlastRadius === "HIGH" ? "ELEVATE_HIGH" : "NONE",
+    vetoTriggered: false,
+    confidence: 0.98,
+  };
+  sharedContextBus.ImpactAnalysisAgent = impactOutput;
+  sharedContextBus.ImpactAgent = impactOutput;
+
+  const priorVetoSet = new Set<string>([
+    ...preIntakeOutcome.vetoedAgents,
+    ...preIntakeOutcome.failedAgents,
+  ]);
+
+  const phaseAOutcome = await executeStageDynamicAgents({
+    stage: "PHASE_A_PARALLEL",
+    blueprints: activeBlueprints,
+    request: params.request,
+    sharedContextBus,
+    priorVetoedOrFailed: priorVetoSet,
+  });
+  recordStageHandoffs(phaseAOutcome.assignments);
+
+  // Stage 2: PHASE_B_SEQUENTIAL dynamic planners (e.g. CanaryWeightPlannerAgent)
+  for (const name of [...phaseAOutcome.vetoedAgents, ...phaseAOutcome.failedAgents]) {
+    priorVetoSet.add(name);
+  }
+
+  const phaseBOutcome = await executeStageDynamicAgents({
+    stage: "PHASE_B_SEQUENTIAL",
+    blueprints: activeBlueprints,
+    request: params.request,
+    sharedContextBus,
+    priorVetoedOrFailed: priorVetoSet,
+  });
+  recordStageHandoffs(phaseBOutcome.assignments);
+
+  for (const name of [...phaseBOutcome.vetoedAgents, ...phaseBOutcome.failedAgents]) {
+    priorVetoSet.add(name);
+  }
+
+  // Evaluate overall risk elevation & vetoes from dynamic agents
+  const dynamicOutputs = dynamicTaskAssignments
+    .map((a) => a.structuredOutput)
+    .filter((o): o is AgentStructuredOutput => Boolean(o));
+
+  const blastRadius = elevateBlastRadius(baseBlastRadius, dynamicOutputs);
+  const dynamicVetoed = dynamicTaskAssignments.some((a) => a.status === "VETOED");
+  const dynamicForcedApproval = activeBlueprints.some(
+    (bp) =>
+      bp.canForceApproval &&
+      dynamicTaskAssignments.some((a) => a.agentName === bp.name && a.status === "COMPLETED")
+  );
+
+  // Let CanaryWeightPlannerAgent or BlastRadiusMitigator inform initial weight if in direct_canary_v3
+  const plannerWeightRaw =
+    sharedContextBus.CanaryWeightPlannerAgent?.data?.recommendedCanaryPercent ??
+    sharedContextBus.BlastRadiusMitigator?.data?.maxInitialWeight;
+  const recommendedCanaryWeight =
+    typeof plannerWeightRaw === "number" && plannerWeightRaw >= 1 && plannerWeightRaw <= 100
+      ? Math.round(plannerWeightRaw)
+      : null;
+
+  const effectiveCanarySteps =
+    params.executionMode === "direct_canary_v3" && recommendedCanaryWeight !== null
+      ? Array.from(new Set([recommendedCanaryWeight, ...params.pipelineConfig.canarySteps])).sort(
+          (a, b) => a - b
+        )
+      : params.pipelineConfig.canarySteps;
+  if (effectiveCanarySteps[effectiveCanarySteps.length - 1] !== 100) {
+    effectiveCanarySteps.push(100);
+  }
+  params.pipelineConfig.canarySteps = effectiveCanarySteps;
 
   const gatewayName =
     params.request.exposure === "external"
@@ -390,9 +651,7 @@ async function buildPlanAndTraces(params: {
       : `int-${params.request.environment}-gateway`;
 
   const initialCanaryWeight =
-    params.executionMode === "direct_canary_v3"
-      ? (params.pipelineConfig.canarySteps[0] ?? 25)
-      : 100;
+    params.executionMode === "direct_canary_v3" ? (effectiveCanarySteps[0] ?? 25) : 100;
 
   const beforeYaml = collidingRoute ? renderRouteYaml(collidingRoute) : "";
   const customRevisionSuffix = params.pipelineConfig.customInstructions
@@ -436,15 +695,18 @@ async function buildPlanAndTraces(params: {
       };
 
   const planDigest = computePlanDigest(liveEtag, artifacts, rollbackArtifacts);
-  const dryRunPassed = violations.length === 0;
+  const dryRunPassed = violations.length === 0 && !dynamicVetoed;
 
+  const planId = crypto.randomUUID();
   const changePlan: ChangePlan = {
-    planId: crypto.randomUUID(),
+    planId,
     workflowId: params.workflowId,
     targetStateEtag: liveEtag,
     blastRadius,
     policyChecks: checks,
-    policyViolations: violations,
+    policyViolations: dynamicVetoed
+      ? [...violations, "Dynamic agent veto triggered escalation to SupervisorAgent"]
+      : violations,
     artifacts,
     diffs: [
       computeUnifiedDiff(yamlPath, "HTTPRoute", beforeYaml, afterYaml),
@@ -470,13 +732,38 @@ async function buildPlanAndTraces(params: {
     createdAt: now,
   };
 
+  const changePlanOutput: AgentStructuredOutput = {
+    summary: `Synthesized ChangePlan ${planId} (initial canary ${initialCanaryWeight}%).`,
+    data: {
+      planId,
+      planDigestSha256: planDigest,
+      dryRunPassed,
+      initialCanaryWeight,
+    },
+    riskDelta: "NONE",
+    vetoTriggered: !dryRunPassed,
+    confidence: 1,
+  };
+  sharedContextBus.ChangePlanningAgent = changePlanOutput;
+  sharedContextBus.ChangePlanAgent = changePlanOutput;
+
+  // Stage 3: POST_VERIFY hooked agents
+  const postVerifyOutcome = await executeStageDynamicAgents({
+    stage: "POST_VERIFY",
+    blueprints: activeBlueprints,
+    request: params.request,
+    sharedContextBus,
+    priorVetoedOrFailed: priorVetoSet,
+  });
+  recordStageHandoffs(postVerifyOutcome.assignments);
+
   const traces: AgentStepTrace[] = [
     {
       agentName: "IngressIntakeAgent",
       phase: "INTAKE",
       accessMode: "NONE",
       status: "COMPLETED",
-      summary: `Validated IngressRequest for ${params.request.appName} (${params.request.environment}).`,
+      summary: intakeOutput.summary,
       durationMs: 180,
       completedAt: now,
     },
@@ -485,7 +772,7 @@ async function buildPlanAndTraces(params: {
       phase: "SUPERVISOR",
       accessMode: "STATE_CHECKPOINT",
       status: "COMPLETED",
-      summary: `Dispatched Phase A ParallelAgent (iteration ${params.iteration}/${params.pipelineConfig.maxSupervisorIterations})${
+      summary: `Dispatched Phase A parallel & ${activeBlueprints.length} hooked dynamic DAG agents (iteration ${params.iteration}/${params.pipelineConfig.maxSupervisorIterations})${
         params.pipelineConfig.customInstructions
           ? ` · Guidance: "${params.pipelineConfig.customInstructions.slice(0, 60)}"`
           : ""
@@ -501,7 +788,7 @@ async function buildPlanAndTraces(params: {
       phase: "PHASE_A_PARALLEL",
       accessMode: "READ_ONLY",
       status: "COMPLETED",
-      summary: `Snapshotted ${state.routes.length} routes via sa-ingress-readonly; pinned ETag ${liveEtag.slice(0, 18)}...`,
+      summary: discoveryOutput.summary,
       durationMs: 290,
       completedAt: now,
     });
@@ -512,7 +799,7 @@ async function buildPlanAndTraces(params: {
       agentName: "PolicyComplianceAgent",
       phase: "PHASE_A_PARALLEL",
       accessMode: "READ_ONLY",
-      status: dryRunPassed ? "COMPLETED" : "FAILED",
+      status: dryRunBaselinePass ? "COMPLETED" : "FAILED",
       summary: `${checks.filter((c) => c.passed).length}/${checks.length} compliance controls passed (incl. ${state.customPolicyRules.filter((r) => r.enabled).length} custom rules).`,
       durationMs: 150,
       completedAt: now,
@@ -532,7 +819,10 @@ async function buildPlanAndTraces(params: {
   }
 
   if (enabled.has("CostEstimationAgent")) {
-    const monthlyDelta = params.request.exposure === "external" ? "$24.50/mo (Edge WAF + L7 LB)" : "$4.20/mo (Internal Mesh)";
+    const monthlyDelta =
+      params.request.exposure === "external"
+        ? "$24.50/mo (Edge WAF + L7 LB)"
+        : "$4.20/mo (Internal Mesh)";
     traces.push({
       agentName: "CostEstimationAgent",
       phase: "PHASE_A_PARALLEL",
@@ -573,6 +863,33 @@ async function buildPlanAndTraces(params: {
     });
   }
 
+  // Record traces for dynamic DAG assignments
+  for (const assign of dynamicTaskAssignments) {
+    traces.push({
+      agentName: assign.agentName,
+      phase:
+        assign.hookStage === "PHASE_B_SEQUENTIAL"
+          ? "PHASE_B_SEQUENTIAL"
+          : assign.hookStage === "POST_VERIFY"
+            ? "EXECUTION"
+            : assign.hookStage === "PRE_INTAKE"
+              ? "INTAKE"
+              : "PHASE_A_PARALLEL",
+      accessMode: "READ_ONLY",
+      status:
+        assign.status === "COMPLETED"
+          ? "COMPLETED"
+          : assign.status === "VETOED" || assign.status === "SKIPPED_UPSTREAM_FAILED"
+            ? "ABORTED"
+            : "RUNNING",
+      summary:
+        assign.structuredOutput?.summary ??
+        assign.resolvedTaskPrompt.slice(0, 120),
+      durationMs: assign.durationMs ?? 120,
+      completedAt: assign.executedAt ?? now,
+    });
+  }
+
   traces.push(
     {
       agentName: "ChangePlanningAgent",
@@ -590,17 +907,18 @@ async function buildPlanAndTraces(params: {
       status: dryRunPassed ? "COMPLETED" : "FAILED",
       summary: dryRunPassed
         ? "Dry-run passed; deterministic RollbackPlan sealed."
-        : `Dry-run blocked by policy violations: ${violations.join("; ")}`,
+        : `Dry-run blocked: ${changePlan.policyViolations.join("; ")}`,
       durationMs: 210,
       completedAt: now,
     }
   );
 
-  // Flexible HITL Interrupt Gate Policy
+  // Flexible HITL Interrupt Gate Policy (also respects dynamic agent force-approval & Supervisor escalation)
   const hitlMode = params.pipelineConfig.hitlPolicy;
   const requiresHitl =
     params.executionMode !== "advisory_v1" &&
-    (hitlMode === "always" ||
+    (dynamicForcedApproval ||
+      hitlMode === "always" ||
       (hitlMode === "prod_or_high" &&
         (params.request.environment === "prod" || blastRadius === "HIGH")) ||
       (hitlMode === "auto_low_risk" &&
@@ -672,6 +990,10 @@ async function buildPlanAndTraces(params: {
     traces,
     status,
     autoApprovedDecision,
+    dynamicTaskAssignments,
+    spawnedAgents: activeBlueprints,
+    sharedContextBus,
+    pendingHandoffAudits,
   };
 }
 
@@ -710,6 +1032,9 @@ export async function createAndPlanWorkflow(params: {
     currentStateEtag: built.liveEtag,
     blastRadius: built.blastRadius,
     agentTraces: built.traces,
+    dynamicTaskAssignments: built.dynamicTaskAssignments,
+    spawnedAgents: built.spawnedAgents,
+    sharedContextBus: built.sharedContextBus,
     changePlan: built.changePlan,
     approvalDecision: null,
     gitopsPrUrl: null,
@@ -719,7 +1044,7 @@ export async function createAndPlanWorkflow(params: {
   };
 
   state.workflows.unshift(workflow);
-  store.addAuditEvent({
+  appendAuditEventInMemory(state, {
     workflowId,
     actorId: params.request.requesterId,
     actorType: "HUMAN",
@@ -729,10 +1054,27 @@ export async function createAndPlanWorkflow(params: {
       environment: params.request.environment,
       executionMode: params.executionMode,
       hitlPolicy: pipelineConfig.hitlPolicy,
-      enabledAgentsCount: pipelineConfig.enabledAgents.length + pipelineConfig.customAgents.length,
+      enabledAgentsCount:
+        pipelineConfig.enabledAgents.length +
+        pipelineConfig.customAgents.length +
+        built.spawnedAgents.length,
     },
   });
-  store.addAuditEvent({
+
+  for (const item of built.pendingHandoffAudits) {
+    const ev = appendAuditEventInMemory(state, {
+      workflowId,
+      actorId: item.actorId,
+      actorType: "AGENT",
+      eventType: item.eventType,
+      payload: item.payload,
+    });
+    if (item.assignRef) {
+      item.assignRef.auditEventHash = ev.eventHash;
+    }
+  }
+
+  appendAuditEventInMemory(state, {
     workflowId,
     actorId: "SupervisorAgent",
     actorType: "AGENT",
@@ -761,6 +1103,123 @@ export async function createAndPlanWorkflow(params: {
       onEvent: params.onEvent,
     });
     return res.workflow;
+  }
+
+  store.commit();
+  params.onEvent(workflow.status, workflow);
+  return workflow;
+}
+
+export async function assignAgentToWorkflow(params: {
+  workflowId: string;
+  actorId: string;
+  blueprintId?: string;
+  adHocBlueprint?: CreateDynamicAgentBlueprintInput;
+  onEvent: (eventType: string, workflow: WorkflowRun) => void;
+}): Promise<WorkflowRun> {
+  const state = store.getState();
+  const workflow = state.workflows.find((w) => w.workflowId === params.workflowId);
+  if (!workflow) {
+    throw new Error("Workflow not found.");
+  }
+
+  let targetBlueprint: DynamicAgentBlueprint;
+  if (params.blueprintId) {
+    const found = store.listBlueprints().find((b) => b.agentId === params.blueprintId);
+    if (!found) throw new Error("Referenced dynamic agent blueprint not found.");
+    targetBlueprint = { ...found, enabled: true };
+  } else if (params.adHocBlueprint) {
+    assertReadOnlyBlueprintSecurity({
+      name: params.adHocBlueprint.name,
+      allowedTools: (params.adHocBlueprint.allowedTools ??
+        []) as DynamicAgentBlueprint["allowedTools"],
+      serviceAccount: params.adHocBlueprint.serviceAccount,
+    });
+    targetBlueprint = {
+      agentId: crypto.randomUUID(),
+      name: params.adHocBlueprint.name,
+      role: params.adHocBlueprint.role,
+      systemPrompt: params.adHocBlueprint.systemPrompt,
+      taskTemplate: params.adHocBlueprint.taskTemplate,
+      hookStage: params.adHocBlueprint.hookStage,
+      dependsOn: params.adHocBlueprint.dependsOn ?? [],
+      outputSchema: (params.adHocBlueprint.outputSchema ?? []).map((f) => ({
+        ...f,
+        required: f.required ?? true,
+      })),
+      allowedTools: (params.adHocBlueprint.allowedTools ??
+        []) as DynamicAgentBlueprint["allowedTools"],
+      triggerCondition: params.adHocBlueprint.triggerCondition ?? { alwaysActive: true },
+      canForceApproval: params.adHocBlueprint.canForceApproval ?? false,
+      spawnedBy: params.adHocBlueprint.spawnedBy ?? "OPERATOR",
+      enabled: true,
+      createdAt: new Date().toISOString(),
+    };
+  } else {
+    throw new Error("Provide either blueprintId or adHocBlueprint.");
+  }
+
+  const existingExtra = (workflow.spawnedAgents ?? []).filter(
+    (bp) => bp.name !== targetBlueprint.name
+  );
+  const combinedCandidate = [...existingExtra, targetBlueprint];
+  if (combinedCandidate.length > MAX_DYNAMIC_AGENTS_PER_WORKFLOW) {
+    throw new DagValidationError(
+      `Bounded fan-out limit exceeded: maximum ${MAX_DYNAMIC_AGENTS_PER_WORKFLOW} dynamic agents allowed per workflow.`,
+      "MAX_DYNAMIC_AGENTS_EXCEEDED"
+    );
+  }
+  validateAgentDag(combinedCandidate);
+
+  const nextConfig = normalizePipelineConfig(workflow.pipelineConfig);
+  const nextIter = (workflow.supervisorIteration ?? 1) + 1;
+
+  const built = await buildPlanAndTraces({
+    workflowId: workflow.workflowId,
+    request: workflow.ingressRequest,
+    executionMode: workflow.executionMode,
+    pipelineConfig: nextConfig,
+    iteration: nextIter,
+    extraBlueprints: combinedCandidate,
+  });
+
+  workflow.pipelineConfig = nextConfig;
+  workflow.supervisorIteration = nextIter;
+  workflow.currentStateEtag = built.liveEtag;
+  workflow.blastRadius = built.blastRadius;
+  workflow.changePlan = built.changePlan;
+  workflow.agentTraces = built.traces;
+  workflow.dynamicTaskAssignments = built.dynamicTaskAssignments;
+  workflow.spawnedAgents = built.spawnedAgents;
+  workflow.sharedContextBus = built.sharedContextBus;
+  workflow.approvalDecision = null;
+  workflow.status = built.status;
+  workflow.updatedAt = new Date().toISOString();
+
+  appendAuditEventInMemory(state, {
+    workflowId: workflow.workflowId,
+    actorId: params.actorId,
+    actorType: "HUMAN",
+    eventType: "DYNAMIC_AGENT_ASSIGNED",
+    payload: {
+      agentName: targetBlueprint.name,
+      hookStage: targetBlueprint.hookStage,
+      dependsOn: targetBlueprint.dependsOn,
+      newTargetEtag: built.liveEtag,
+    },
+  });
+
+  for (const item of built.pendingHandoffAudits) {
+    const ev = appendAuditEventInMemory(state, {
+      workflowId: workflow.workflowId,
+      actorId: item.actorId,
+      actorType: "AGENT",
+      eventType: item.eventType,
+      payload: item.payload,
+    });
+    if (item.assignRef) {
+      item.assignRef.auditEventHash = ev.eventHash;
+    }
   }
 
   store.commit();
@@ -805,6 +1264,7 @@ export async function reviseWorkflowWithAgentFeedback(params: {
     executionMode: workflow.executionMode,
     pipelineConfig: nextConfig,
     iteration: nextIter,
+    extraBlueprints: workflow.spawnedAgents ?? [],
   });
 
   workflow.ingressRequest = nextRequest;
@@ -814,13 +1274,16 @@ export async function reviseWorkflowWithAgentFeedback(params: {
   workflow.blastRadius = built.blastRadius;
   workflow.changePlan = built.changePlan;
   workflow.agentTraces = built.traces;
+  workflow.dynamicTaskAssignments = built.dynamicTaskAssignments;
+  workflow.spawnedAgents = built.spawnedAgents;
+  workflow.sharedContextBus = built.sharedContextBus;
   workflow.approvalDecision = null;
   workflow.errorMessage = null;
   workflow.probeResult = null;
   workflow.status = built.status;
   workflow.updatedAt = new Date().toISOString();
 
-  store.addAuditEvent({
+  appendAuditEventInMemory(state, {
     workflowId: workflow.workflowId,
     actorId: params.actorId,
     actorType: "HUMAN",
@@ -831,6 +1294,19 @@ export async function reviseWorkflowWithAgentFeedback(params: {
       newTargetEtag: built.liveEtag,
     },
   });
+
+  for (const item of built.pendingHandoffAudits) {
+    const ev = appendAuditEventInMemory(state, {
+      workflowId: workflow.workflowId,
+      actorId: item.actorId,
+      actorType: "AGENT",
+      eventType: item.eventType,
+      payload: item.payload,
+    });
+    if (item.assignRef) {
+      item.assignRef.auditEventHash = ev.eventHash;
+    }
+  }
 
   if (built.autoApprovedDecision) {
     store.commit();
