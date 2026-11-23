@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Governed Multi-Agent Ingress Control Plane – Leadership Brief</title>
+<style>
+  @page { size: Letter; margin: 0.6in 0.65in; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 10.5pt; line-height: 1.45; margin: 0; }
+  h1 { font-size: 26pt; margin: 0 0 6px; color: #1e3a8a; line-height: 1.1; }
+  h2 { font-size: 15pt; color: #1e3a8a; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin: 0 0 10px; }
+  h3 { font-size: 11.5pt; margin: 14px 0 4px; color: #1e293b; }
+  p { margin: 0 0 8px; }
+  .sub { color: #475569; font-size: 12pt; margin-bottom: 18px; }
+  .page { page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  .kpis { display: flex; gap: 10px; margin: 14px 0; }
+  .kpi { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #f8fafc; }
+  .kpi b { display: block; font-size: 17pt; color: #2563eb; }
+  .kpi span { font-size: 9pt; color: #475569; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 6px 0 10px; }
+  th { background: #1e3a8a; color: #fff; text-align: left; padding: 6px 8px; }
+  td { border-bottom: 1px solid #e2e8f0; padding: 4px 7px; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .callout { background: #fffbeb; border-left: 4px solid #d97706; padding: 8px 12px; margin: 10px 0; font-size: 10pt; }
+  .steps { counter-reset: s; padding: 0; list-style: none; }
+  .steps li { counter-increment: s; margin: 0 0 7px; padding-left: 34px; position: relative; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; background: #2563eb; color: #fff; text-align: center; line-height: 24px; font-weight: 700; font-size: 10pt; }
+  .tag { display: inline-block; font-size: 8.5pt; padding: 1px 7px; border-radius: 10px; background: #dbeafe; color: #1e3a8a; margin-right: 4px; }
+  .foot { color: #64748b; font-size: 8.5pt; margin-top: 14px; }
+  svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<div class="page">
+  <h1>Governed Multi-Agent<br>Ingress Control Plane</h1>
+  <div class="sub">Leadership brief: how specialist AI agents collaborate to deliver safe, self-service ingress changes</div>
+
+  <h2>The problem</h2>
+  <p>Onboarding an application to the enterprise ingress platform today takes days of tickets, specialist knowledge (Kubernetes, DNS, TLS, WAF) and manual compliance sign-off. Teams hesitate to migrate because a bad routing change can take down production.</p>
+
+  <h2>The solution in one paragraph</h2>
+  <p>A developer describes what they need in plain English. A coordinated team of <b>specialist AI agents</b> analyses the live environment in parallel, checks policy, scores risk, drafts the exact configuration change and pre-computes a rollback. <b>A human approver signs off</b>, and only then does a tightly-scoped execution agent apply the change progressively, watching health probes and rolling back automatically if anything degrades. Every handoff is recorded in a tamper-evident audit log.</p>
+
+  <div class="kpis">
+    <div class="kpi"><b>3–5×</b><span>faster onboarding (days → minutes)</span></div>
+    <div class="kpi"><b>0</b><span>unapproved production changes</span></div>
+    <div class="kpi"><b>&lt; 60 s</b><span>deterministic automatic rollback</span></div>
+    <div class="kpi"><b>100%</b><span>agent handoffs audited (SHA-256 chain)</span></div>
+  </div>
+
+  <h2>Four barriers removed</h2>
+  <table>
+    <tr><th>Barrier today</th><th>How the agents address it</th></tr>
+    <tr><td>Steep Kubernetes / WAF learning curve</td><td>The Intake agent turns plain-English intent into compliant YAML/HCL.</td></tr>
+    <tr><td>Fear of breaking production</td><td>Parallel pre-flight checks detect route collisions, lock the cluster state, and pre-compute the rollback.</td></tr>
+    <tr><td>Slow security &amp; compliance sign-off</td><td>Policy and Security agents enforce TLS 1.3, WAF and four-eyes review before an approver ever sees the change.</td></tr>
+    <tr><td>Platform team becomes a bottleneck</td><td>Security, FinOps and Platform teams add new specialist agents at runtime, with no code deploy.</td></tr>
+  </table>
+  <div class="callout"><b>Design principle:</b> AI reasons and recommends; <b>deterministic code and humans decide and execute.</b> The AI never holds write credentials until a signed human approval exists.</div>
+</div>
+
+<!-- PAGE 2 -->
+<div class="page">
+  <h2>How the agents interact</h2>
+  <p>Work flows top to bottom. Each stage hands structured, validated data to the next, and read-only analysis is separated from write execution.</p>
+
+<svg viewBox="0 0 760 800" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#475569"/></marker>
+  </defs>
+  <style>
+    .t{font-size:12px;font-weight:700;text-anchor:middle}
+    .s{font-size:10px;text-anchor:middle;fill:#334155}
+    .l{font-size:10px;fill:#475569;font-style:italic}
+    .band{font-size:11px;font-weight:700;fill:#1e3a8a}
+    line,path.ar{stroke:#475569;stroke-width:1.6;fill:none;marker-end:url(#a)}
+  </style>
+
+  <!-- Requester -->
+  <rect x="270" y="5" width="220" height="40" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+  <text class="t" x="380" y="23">Requester</text><text class="s" x="380" y="37">Plain-English ingress request</text>
+  <line x1="380" y1="45" x2="380" y2="70"/>
+
+  <!-- Intake -->
+  <rect x="230" y="70" width="300" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text class="t" x="380" y="89">IngressIntakeAgent</text><text class="s" x="380" y="106">Structures the request · rejects secrets · no infra access</text>
+  <line x1="380" y1="118" x2="380" y2="140"/>
+  <text class="l" x="392" y="134">validated IngressRequest</text>
+
+  <!-- Supervisor -->
+  <rect x="230" y="140" width="300" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  <text class="t" x="380" y="159">SupervisorAgent</text><text class="s" x="380" y="176">Dispatches work · bounds loops · escalates risk</text>
+  <line x1="380" y1="188" x2="380" y2="215"/>
+
+  <!-- Phase A -->
+  <rect x="10" y="215" width="740" height="165" rx="10" fill="#f0f9ff" stroke="#38bdf8" stroke-dasharray="5 4"/>
+  <text class="band" x="22" y="234">PHASE A · PARALLEL · READ-ONLY (sa-ingress-readonly)</text>
+  <rect x="25" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
+  <text class="t" x="107" y="268">Discovery</text>
+  <text class="s" x="107" y="286">Reads routes, load balancer,</text><text class="s" x="107" y="299">DNS, TLS certificates</text>
+  <text class="s" x="107" y="320" fill="#1e3a8a">→ topology snapshot</text><text class="s" x="107" y="334" fill="#1e3a8a">+ state fingerprint (ETag)</text>
+  <rect x="205" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
+  <text class="t" x="287" y="268">Policy &amp; Compliance</text>
+  <text class="s" x="287" y="286">Evaluates WAF, TLS 1.3,</text><text class="s" x="287" y="299">IP-pool &amp; OPA rules</text>
+  <text class="s" x="287" y="326" fill="#1e3a8a">→ policy report</text>
+  <rect x="385" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
+  <text class="t" x="467" y="268">Impact Analysis</text>
+  <text class="s" x="467" y="286">Finds route collisions,</text><text class="s" x="467" y="299">checks backend health</text>
+  <text class="s" x="467" y="326" fill="#1e3a8a">→ blast radius</text><text class="s" x="467" y="340" fill="#1e3a8a">LOW / MEDIUM / HIGH</text>
+  <rect x="565" y="248" width="170" height="108" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text class="t" x="650" y="268">On-the-fly specialists</text>
+  <text class="s" x="650" y="286">FinOps cost · Security posture</text><text class="s" x="650" y="299">Data residency · custom checks</text>
+  <text class="s" x="650" y="326" fill="#166534">added at runtime, read-only,</text><text class="s" x="650" y="340" fill="#166534">can veto or raise risk</text>
+  <line x1="380" y1="380" x2="380" y2="410"/>
+  <text class="l" x="392" y="400">snapshot + policy + risk handed to planning</text>
+
+  <!-- Phase B -->
+  <rect x="10" y="410" width="740" height="100" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-dasharray="5 4"/>
+  <text class="band" x="22" y="429" fill="#6b21a8" style="fill:#6b21a8">PHASE B · SEQUENTIAL · PLAN &amp; PROVE (still no write access)</text>
+  <rect x="60" y="440" width="270" height="56" rx="8" fill="#fff" stroke="#7e22ce" stroke-width="1.5"/>
+  <text class="t" x="195" y="460">ChangePlanningAgent</text><text class="s" x="195" y="476">Drafts exact YAML / Terraform + line diff</text>
+  <rect x="430" y="440" width="270" height="56" rx="8" fill="#fff" stroke="#7e22ce" stroke-width="1.5"/>
+  <text class="t" x="565" y="460">ValidationRollbackAgent</text><text class="s" x="565" y="476">Server-side dry-run · pre-computes rollback</text>
+  <line x1="330" y1="468" x2="430" y2="468"/>
+  <line x1="380" y1="510" x2="380" y2="540"/>
+  <text class="l" x="392" y="530">signed-ready ChangePlan (digest + rollback)</text>
+
+  <!-- Human gate -->
+  <rect x="200" y="540" width="360" height="56" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+  <text class="t" x="380" y="561">HUMAN APPROVAL GATE</text><text class="s" x="380" y="578">Reviewer ≠ requester · reviews diff, risk &amp; policy · signs approval</text>
+  <line x1="380" y1="596" x2="380" y2="625"/>
+  <text class="l" x="392" y="616">cryptographically signed ApprovalDecision</text>
+
+  <!-- Execution -->
+  <rect x="200" y="625" width="360" height="62" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text class="t" x="380" y="645">ExecutionAgent (only agent with write access)</text>
+  <text class="s" x="380" y="662">Verifies signature + plan digest + no drift since analysis</text>
+  <text class="s" x="380" y="676">Applies canary 10% → 50% → 100% · runs synthetic probes</text>
+  <path class="ar" d="M300,687 L300,735"/><path class="ar" d="M460,687 L460,735"/>
+  <text class="l" x="170" y="714">probes pass</text><text class="l" x="470" y="714">probe fails / drift detected</text>
+
+  <rect x="190" y="735" width="220" height="50" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text class="t" x="300" y="756">COMPLETED</text><text class="s" x="300" y="772">Audited, live, verified</text>
+  <rect x="420" y="735" width="270" height="50" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text class="t" x="555" y="756">AUTOMATIC ROLLBACK / ABORT</text><text class="s" x="555" y="772">Pre-computed plan, &lt; 60 s, no AI involved</text>
+</svg>
+</div>
+
+<!-- PAGE 3 -->
+<div class="page">
+  <h2>What each agent does and hands over</h2>
+  <table>
+    <tr><th style="width:21%">Agent</th><th style="width:12%">Stage</th><th>Responsibility</th><th style="width:24%">Hands over</th></tr>
+    <tr><td><b>IngressIntakeAgent</b></td><td>Intake</td><td>Converts the natural-language request into a validated request; blocks private keys and tokens; asks for missing environment info.</td><td>Structured request</td></tr>
+    <tr><td><b>SupervisorAgent</b></td><td>Intake / control</td><td>Coordinates the pipeline, limits retries, fails or escalates unresolvable violations, and forces human review for production or HIGH-risk changes.</td><td>Routing &amp; escalation decisions</td></tr>
+    <tr><td><b>Discovery / Inventory</b></td><td>A (parallel)</td><td>Reads live routes, load balancers, DNS and certificates; fingerprints the state so later drift is detectable.</td><td>Topology snapshot + ETag</td></tr>
+    <tr><td><b>Policy &amp; Compliance</b></td><td>A (parallel)</td><td>Checks WAF, TLS 1.3, IP-pool and organisational policy rules.</td><td>Policy report</td></tr>
+    <tr><td><b>Impact Analysis</b></td><td>A (parallel)</td><td>Detects hostname/path collisions and backend health; scores blast radius.</td><td>Blast-radius score</td></tr>
+    <tr><td><b>Specialist agents</b><br><span style="font-size:8.5pt">(on-the-fly)</span></td><td>Any</td><td>Cost estimation, security posture, data residency and more; defined at runtime, read-only, can raise risk or pause for human review.</td><td>Typed JSON outputs</td></tr>
+    <tr><td><b>ChangePlanningAgent</b></td><td>B (sequential)</td><td>Generates the exact configuration (including scoped CDN allow-lists) and a readable diff.</td><td>Draft change plan</td></tr>
+    <tr><td><b>ValidationRollbackAgent</b></td><td>B (sequential)</td><td>Dry-runs the plan against the platform and pre-computes a deterministic rollback.</td><td>Validated plan + rollback</td></tr>
+    <tr><td><b>ExecutionAgent</b></td><td>Execute</td><td>Applies only the exact approved plan; progressive canary; synthetic health probes; triggers rollback.</td><td>Outcome + audit events</td></tr>
+  </table>
+
+  <h2>Guardrails leadership can rely on</h2>
+  <table>
+    <tr><th style="width:30%">Control</th><th>What it guarantees</th></tr>
+    <tr><td>Read / write credential separation</td><td>Analysis agents are technically unable to change anything. Only the Execution agent holds write access, and only after approval.</td></tr>
+    <tr><td>Four-eyes human approval</td><td>The requester can never approve their own production or HIGH-risk change.</td></tr>
+    <tr><td>Signed plan digest</td><td>What the human approved is byte-for-byte what is executed; tampering halts execution.</td></tr>
+    <tr><td>Anti-drift lock</td><td>If live infrastructure changed after analysis, execution aborts and requires re-planning.</td></tr>
+    <tr><td>Deterministic rollback</td><td>Rollback is pre-computed and run by code in under 60 seconds, with no AI in the loop.</td></tr>
+    <tr><td>Tamper-evident audit log</td><td>Every handoff, decision and approval is chained with SHA-256 for internal and external audit.</td></tr>
+    <tr><td>Validated agent graph</td><td>New agents are checked for cycles and read-only tools before joining the pipeline.</td></tr>
+  </table>
+</div>
+
+<!-- PAGE 4 -->
+<div class="page">
+  <h2>Extending governance without engineering effort</h2>
+  <ol class="steps">
+    <li><b>Define a specialist</b> in Agent Studio: goal, read-only tools and the structured outputs it must produce.</li>
+    <li><b>Chain it</b> to earlier agents' outputs; the system validates the dependency graph and rejects loops or write-tool escalation.</li>
+    <li><b>It runs automatically</b> in the correct stage on every workflow, with no redeploy.</li>
+    <li><b>It can veto or raise risk</b>, pausing the change for human sign-off but never bypassing security boundaries.</li>
+  </ol>
+  <p><span class="tag">FinOps cost guardrail</span><span class="tag">Data-residency auditor</span><span class="tag">TLS/WAF posture verifier</span><span class="tag">Post-deploy SLO guard</span><span class="tag">Rollout companion</span><span class="tag">Troubleshooting</span></p>
+
+  <h2 style="margin-top:20px">Phased delivery</h2>
+  <table>
+    <tr><th style="width:18%">Phase</th><th style="width:30%">Capability</th><th>Risk posture</th></tr>
+    <tr><td><b>v1</b></td><td>Read-only advisory, full analysis, diffs, governance dashboard</td><td>Zero automated writes</td></tr>
+    <tr><td><b>v2</b></td><td>GitOps pull-request execution behind signed human approval</td><td>Changes flow through existing Git review and CI</td></tr>
+    <tr><td><b>v3</b></td><td>Direct gated execution with canary rollout and auto-rollback</td><td>Scoped credentials, probes, &lt; 60 s rollback</td></tr>
+  </table>
+
+  <h2 style="margin-top:20px">Where an agent framework such as Strands fits</h2>
+  <p>An open-source agent SDK (for example, Strands Agents) could serve as the <b>runtime inside each agent node</b>: model-agnostic access (Bedrock, Anthropic, OpenAI, Gemini), structured output, tool and MCP connectivity, tracing and evaluation. The orchestration, approval, audit and rollout logic remains in-house, as it is the core control and differentiator. See <i>docs/strands-agents-evaluation.md</i>.</p>
+
+  <h2 style="margin-top:20px">Decisions requested</h2>
+  <ul>
+    <li>Endorse v1 (read-only advisory) as the first production milestone.</li>
+    <li>Nominate Security, FinOps and Platform owners for the first on-the-fly specialist agents.</li>
+    <li>Approve a time-boxed pilot of an agent SDK runtime behind the existing orchestrator.</li>
+  </ul>
+  <div class="foot">Source: docs/architecture-spec.md and the ingress-control-plane implementation. Figures are design targets from the architecture spec, not measured results.</div>
+</div>
+
+</body>
+</html>
