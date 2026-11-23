@@ -32,6 +32,7 @@ import { AgentHandoffFeed } from "./agents/AgentHandoffFeed";
 import { AgentInspectorPanel } from "./agents/AgentInspectorPanel";
 import { CoreAgentNodeCard, DynamicTaskNodeCard } from "./agents/AgentNodeCard";
 import { useDagEdgeGeometry } from "./agents/useDagEdgeGeometry";
+import { AnimatedAgentFlow } from "./agents/AnimatedAgentFlow";
 
 export interface LiveAgentFlowDiagramProps {
   workflow?: WorkflowRun | null;
@@ -51,11 +52,14 @@ export function LiveAgentFlowDiagram({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showContextBus, setShowContextBus] = useState(false);
   const [drawerTarget, setDrawerTarget] = useState<AgentHandoffInspectorTarget | null>(null);
+  const [viewMode, setViewMode] = useState<"simple" | "detailed">("simple");
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const { dagEdges, registerNodeRef } = useDagEdgeGeometry(canvasRef, workflow, [
     replayIndex,
     selectedAgentId,
+    viewMode,
   ]);
 
   useEffect(() => {
@@ -353,7 +357,11 @@ export function LiveAgentFlowDiagram({
 
       {/* Main Split: Interactive Multi-Agent Graph + Inspector */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-        <div className="xl:col-span-8 bg-white border border-slate-200 rounded-lg p-5 space-y-5 overflow-x-auto">
+        <div
+          className={`${
+            viewMode === "detailed" ? "xl:col-span-8" : "xl:col-span-12"
+          } bg-white border border-slate-200 rounded-lg p-5 space-y-5 overflow-x-auto`}
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">
@@ -365,6 +373,27 @@ export function LiveAgentFlowDiagram({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+              <div
+                role="group"
+                aria-label="Diagram detail level"
+                className="inline-flex rounded-md border border-slate-200 overflow-hidden text-xs"
+              >
+                {(["simple", "detailed"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    aria-pressed={viewMode === mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-3 py-1 font-medium capitalize transition-colors ${
+                      viewMode === mode
+                        ? "bg-slate-900 text-white"
+                        : "bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
               <span className="inline-flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
                 Completed
@@ -384,6 +413,36 @@ export function LiveAgentFlowDiagram({
             </div>
           </div>
 
+          {viewMode === "simple" && (
+            <AnimatedAgentFlow
+              nodeStates={nodeStates}
+              assignments={workflow?.dynamicTaskAssignments ?? []}
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={(id) => {
+                setSelectedAgentId(id);
+                setInspectorOpen(true);
+              }}
+              onInspectDynamic={openAgentDrawer}
+              streamConnected={streamConnected}
+              replayDescription={activeReplayStep?.description}
+              onCloseInspector={() => setInspectorOpen(false)}
+              inspector={
+                inspectorOpen && (
+                  <AgentInspectorPanel
+                    guide={selectedGuide}
+                    nodeState={nodeStates[selectedGuide.id]}
+                    workflow={workflow}
+                    matchingTrace={matchingTrace}
+                    compact={compact}
+                    onSelectAgent={setSelectedAgentId}
+                    onOpenContextDrawer={openAgentDrawer}
+                  />
+                )
+              }
+            />
+          )}
+
+          {viewMode === "detailed" && (
           <div className="min-w-[780px] space-y-4">
             <div className="grid grid-cols-5 gap-3 text-[11px] font-medium text-slate-500 px-1">
               <div>1. Intake & Orchestrator</div>
@@ -568,17 +627,20 @@ export function LiveAgentFlowDiagram({
               </div>
             </div>
           </div>
+          )}
         </div>
 
-        <AgentInspectorPanel
-          guide={selectedGuide}
-          nodeState={nodeStates[selectedGuide.id]}
-          workflow={workflow}
-          matchingTrace={matchingTrace}
-          compact={compact}
-          onSelectAgent={setSelectedAgentId}
-          onOpenContextDrawer={openAgentDrawer}
-        />
+        {viewMode === "detailed" && (
+          <AgentInspectorPanel
+            guide={selectedGuide}
+            nodeState={nodeStates[selectedGuide.id]}
+            workflow={workflow}
+            matchingTrace={matchingTrace}
+            compact={compact}
+            onSelectAgent={setSelectedAgentId}
+            onOpenContextDrawer={openAgentDrawer}
+          />
+        )}
       </div>
 
       {workflow && !compact && (
