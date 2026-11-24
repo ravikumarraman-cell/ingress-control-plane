@@ -1,7 +1,16 @@
 import { useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { BookOpen, CheckSquare, Cpu, FileText, GitBranch, Plus, Radio } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  CheckSquare,
+  Cpu,
+  FileText,
+  GitBranch,
+  Plus,
+  Radio,
+} from "lucide-react";
 import {
   fetchWorkflows,
   getCurrentOperator,
@@ -44,6 +53,7 @@ export function RootLayout({ children }: { children?: ReactNode }) {
     if (pathname.startsWith("/approvals")) return "Governance / Pending Approvals";
     if (pathname.startsWith("/audit-log")) return "Governance / Audit Trail";
     if (pathname.startsWith("/agents")) return "Control Plane / Live Agent Flow";
+    if (pathname.startsWith("/strands-metrics")) return "Observability / Strands Agent Metrics";
     if (pathname.startsWith("/architecture")) return "Documentation / Architecture Spec";
     return "Control Plane / Workflows";
   };
@@ -51,6 +61,7 @@ export function RootLayout({ children }: { children?: ReactNode }) {
   const navItems: NavItemConfig[] = [
     { to: "/workflows", label: "Workflows", icon: GitBranch, matchPrefix: "/workflows" },
     { to: "/agents", label: "Agent Flow", icon: Cpu },
+    { to: "/strands-metrics", label: "Agent Metrics", icon: BarChart3 },
     {
       to: "/approvals",
       label: "Approvals",

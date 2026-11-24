@@ -1,5 +1,6 @@
 import {
   Agent,
+  AgentResultEvent,
   Graph,
   type Tool,
 } from "@strands-agents/sdk";
@@ -81,8 +82,8 @@ export async function executeCorePipelineWithStrandsGraph(
     systemPrompt: string;
     fallbackText: string;
     tools?: Tool[];
-  }) =>
-    new Agent({
+  }) => {
+    const agent = new Agent({
       id: cfg.id,
       name: cfg.name,
       printer: false,
@@ -95,6 +96,23 @@ export async function executeCorePipelineWithStrandsGraph(
       interventions: sharedInterventions(),
       retryStrategy: null,
     });
+    agent.addHook(AgentResultEvent, (ev) => {
+      const nodeSucceeded =
+        cfg.name === "PolicyComplianceAgent"
+          ? dryRunBaselinePass
+          : cfg.name === "ValidationRollbackAgent"
+            ? input.dryRunPassed
+            : undefined;
+      recordStrandsAgentResult({
+        agentName: cfg.name,
+        workflowId: input.workflowId,
+        sessionId: input.sessionId,
+        succeeded: nodeSucceeded,
+        result: ev.result,
+      });
+    });
+    return agent;
+  };
 
   const nodes: Agent[] = [];
   const edges: Array<[string, string]> = [];
@@ -264,16 +282,19 @@ export async function executeCorePipelineWithStrandsGraph(
     if (txt) nodeSummaries[nr.nodeId] = txt;
   }
 
-  recordStrandsAgentResult({
-    agentName: "CorePipelineGraph",
-    workflowId: input.workflowId,
-    sessionId: input.sessionId,
-    result: {
-      stopReason: multiAgentResult.status === "COMPLETED" ? "endTurn" : "maxTokens",
-      metrics: undefined,
-      traces: [],
-    },
-  });
+  if (multiAgentResult.results.length === 0) {
+    recordStrandsAgentResult({
+      agentName: "CorePipelineGraph",
+      workflowId: input.workflowId,
+      sessionId: input.sessionId,
+      succeeded: multiAgentResult.status === "COMPLETED",
+      result: {
+        stopReason: multiAgentResult.status === "COMPLETED" ? "endTurn" : "maxTokens",
+        metrics: undefined,
+        traces: [],
+      },
+    });
+  }
 
   return {
     multiAgentResult,

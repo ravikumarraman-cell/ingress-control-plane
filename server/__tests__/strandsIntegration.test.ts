@@ -370,13 +370,35 @@ describe("Strands Agents SDK & Harness Native Integration", () => {
     const rolledBackJson = (await rollbackRes.json()) as { workflow: WorkflowRun };
     expect(rolledBackJson.workflow.status).toBe("ROLLED_BACK");
 
-    // Telemetry endpoint reflects recorded Strands invocations
+    // Telemetry endpoint reflects recorded Strands invocations, token usage, tool latency, and iterations
     const telemetryRes = await fetch(`${baseUrl}/api/v1/strands/telemetry`);
     expect(telemetryRes.status).toBe(200);
     const telemetryJson = (await telemetryRes.json()) as {
-      aggregates: { totalInvocations: number };
+      aggregates: {
+        totalInvocations: number;
+        totalTokens: number;
+        inputTokens: number;
+        outputTokens: number;
+        totalToolCalls: number;
+        avgToolLatencyMs: number;
+        totalIterations: number;
+        successfulIterations: number;
+        iterationSuccessRatePct: number;
+      };
+      toolLatencyMetrics: Array<{ toolName: string; callCount: number; avgLatencyMs: number }>;
+      agentBreakdown: Array<{ agentName: string; totalTokens: number; successfulIterations: number }>;
+      iterationSeries: Array<{ label: string; totalTokens: number; successfulIterations: number }>;
     };
     expect(telemetryJson.aggregates.totalInvocations).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.totalTokens).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.inputTokens).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.outputTokens).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.totalToolCalls).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.successfulIterations).toBeGreaterThan(0);
+    expect(telemetryJson.aggregates.iterationSuccessRatePct).toBeGreaterThan(0);
+    expect(telemetryJson.toolLatencyMetrics.length).toBeGreaterThan(0);
+    expect(telemetryJson.agentBreakdown.length).toBeGreaterThan(0);
+    expect(telemetryJson.iterationSeries.length).toBeGreaterThan(0);
 
     // TOCTOU Drift 409 check on a second workflow
     const wf2Res = await fetch(`${baseUrl}/api/v1/workflows`, {

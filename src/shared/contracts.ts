@@ -725,3 +725,126 @@ export interface TrafficTelemetryResponse {
   series: TrafficTelemetryPoint[];
 }
 
+export type StrandsProviderKind = "google" | "bedrock" | "anthropic" | "openai" | "deterministic";
+
+export interface StrandsProviderEntry {
+  provider: StrandsProviderKind;
+  configured: boolean;
+  defaultModelId: string;
+  envVar: string;
+  sdkClass: string;
+}
+
+export interface StrandsToolBreakdown {
+  toolName: string;
+  callCount: number;
+  successCount: number;
+  errorCount: number;
+  totalTimeMs: number;
+  avgLatencyMs: number;
+}
+
+export interface StrandsInvocationTelemetryItem {
+  recordId: string;
+  agentName: string;
+  workflowId?: string;
+  sessionId?: string;
+  stopReason: string;
+  durationMs: number;
+  totalCycles: number;
+  successfulCycles: number;
+  failedCycles: number;
+  tokenUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+  toolCallsCount: number;
+  avgToolLatencyMs: number;
+  toolBreakdown: StrandsToolBreakdown[];
+  traceCount: number;
+  recordedAt: string;
+  source: "live_strands" | "persisted_workflow";
+}
+
+export interface StrandsAgentMetricSummary {
+  agentName: string;
+  invocations: number;
+  totalCycles: number;
+  successfulIterations: number;
+  failedIterations: number;
+  successRatePct: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  avgDurationMs: number;
+  toolCallsCount: number;
+  avgToolLatencyMs: number;
+}
+
+export interface StrandsIterationSeriesPoint {
+  index: number;
+  label: string;
+  agentName: string;
+  workflowLabel: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  avgToolLatencyMs: number;
+  durationMs: number;
+  successfulIterations: number;
+  failedIterations: number;
+  stopReason: string;
+  recordedAt: string;
+}
+
+export interface StrandsTelemetrySnapshot {
+  sdkVersion: string;
+  harnessVersion: string;
+  telemetryConfig: {
+    otlpEnabled: boolean;
+    serviceName: string;
+  };
+  providers: StrandsProviderEntry[];
+  mcp: {
+    configured: boolean;
+    serverNames: string[];
+    sdkClassAvailable: boolean;
+  };
+  recentInvocations: StrandsInvocationTelemetryItem[];
+  toolLatencyMetrics: StrandsToolBreakdown[];
+  agentBreakdown: StrandsAgentMetricSummary[];
+  iterationSeries: StrandsIterationSeriesPoint[];
+  aggregates: {
+    totalInvocations: number;
+    liveInvocations: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    totalToolCalls: number;
+    avgDurationMs: number;
+    avgToolLatencyMs: number;
+    totalIterations: number;
+    successfulIterations: number;
+    failedIterations: number;
+    iterationSuccessRatePct: number;
+  };
+}
+
+export interface StrandsEvalCaseResult {
+  evalId: string;
+  name: string;
+  passed: boolean;
+  detail: string;
+  durationMs: number;
+}
+
+export interface StrandsEvalRunReport {
+  passedCount: number;
+  totalCount: number;
+  allPassed: boolean;
+  evaluatedAt: string;
+  cases: StrandsEvalCaseResult[];
+}
+
+

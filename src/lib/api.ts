@@ -15,6 +15,8 @@ import type {
   OutputFieldDefinition,
   ReadOnlyToolId,
   RolloutMilestone,
+  StrandsEvalRunReport,
+  StrandsTelemetrySnapshot,
   TrafficTelemetryResponse,
   TrafficTelemetryWindow,
   TroubleshootingDiagnosis,
@@ -100,6 +102,21 @@ export async function fetchTrafficTelemetry(
   window: TrafficTelemetryWindow = "15m"
 ): Promise<TrafficTelemetryResponse> {
   const res = await fetch(`/api/v1/telemetry/traffic?window=${encodeURIComponent(window)}`, {
+    headers: buildHeaders(),
+  });
+  return handleJson(res);
+}
+
+export async function fetchStrandsTelemetry(): Promise<StrandsTelemetrySnapshot> {
+  const res = await fetch("/api/v1/strands/telemetry", {
+    headers: buildHeaders(),
+  });
+  return handleJson(res);
+}
+
+export async function runStrandsEvals(): Promise<StrandsEvalRunReport> {
+  const res = await fetch("/api/v1/strands/evals/run", {
+    method: "POST",
     headers: buildHeaders(),
   });
   return handleJson(res);

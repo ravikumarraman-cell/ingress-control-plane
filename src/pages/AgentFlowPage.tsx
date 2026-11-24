@@ -5,6 +5,7 @@ import { ArrowRight, PlayCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { LiveAgentFlowDiagram } from "../components/LiveAgentFlowDiagram";
 import { AgentStudioBuilder } from "../components/agents/AgentStudioBuilder";
 import { PolicyRulesPanel } from "../components/agents/PolicyRulesPanel";
+import { StrandsExecutionMetricsDashboard } from "../components/dashboard/StrandsExecutionMetricsDashboard";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import { StatusBadge } from "../components/ui/StatusBadge";
@@ -22,7 +23,9 @@ export function AgentFlowPage() {
   const queryClient = useQueryClient();
   const { streamConnected } = useWorkflowStream();
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>("");
-  const [workspaceTab, setWorkspaceTab] = useState<"topology" | "studio" | "policies">("topology");
+  const [workspaceTab, setWorkspaceTab] = useState<"topology" | "metrics" | "studio" | "policies">(
+    "topology"
+  );
 
   const workflowsQuery = useQuery({
     queryKey: ["workflows"],
@@ -195,6 +198,7 @@ export function AgentFlowPage() {
           onChange={setWorkspaceTab}
           items={[
             { id: "topology", label: "Live Topology & Handoffs" },
+            { id: "metrics", label: "Execution Metrics" },
             {
               id: "studio",
               label: "Agent Studio & Chaining",
@@ -223,6 +227,8 @@ export function AgentFlowPage() {
             streamConnected={streamConnected}
           />
         ))}
+
+      {workspaceTab === "metrics" && <StrandsExecutionMetricsDashboard />}
 
       {workspaceTab === "studio" && (
         <AgentStudioBuilder

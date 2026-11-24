@@ -75,6 +75,12 @@ export const agentsRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/AgentFlowPage"), "AgentFlowPage"),
 });
 
+export const strandsMetricsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/strands-metrics",
+  component: lazyRouteComponent(() => import("./pages/StrandsMetricsPage"), "StrandsMetricsPage"),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   workflowsRoute,
@@ -83,6 +89,7 @@ const routeTree = rootRoute.addChildren([
   auditLogRoute,
   architectureRoute,
   agentsRoute,
+  strandsMetricsRoute,
 ]);
 
 export const router = createRouter({
