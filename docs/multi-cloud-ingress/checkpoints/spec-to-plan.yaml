@@ -1,0 +1,94 @@
+metadata:
+  generated: "2026-11-24"
+  source_spec: "../plan.md#5-requirements"
+  target_plan: "../plan.md"
+  scope: "Proposed roadmap traceability only; not implementation or cloud certification."
+
+summary:
+  total_requirements: 18
+  covered_requirements: 18
+  missing_requirements: 0
+  coverage_percentage: 100.0
+
+requirements:
+  - req_id: "REQ-001"
+    req_description: "Versioned ingress intent and target identity."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "1.1"}]
+  - req_id: "REQ-002"
+    req_description: "Capability validation and explicit unsupported outcomes."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "1.1"}, {item_id: "2.2"}]
+  - req_id: "REQ-003"
+    req_description: "Independently certified AWS, Azure and Google Cloud profiles."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "2.1"}, {item_id: "4.2"}, {item_id: "4.3"}]
+  - req_id: "REQ-004"
+    req_description: "Authoritative discovery, provenance and concurrency tokens."
+    plan_mapping:
+      items: [{item_id: "2.1"}]
+  - req_id: "REQ-005"
+    req_description: "Routing, network, DNS, certificate and edge-policy lifecycles."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "2.1"}, {item_id: "2.2"}, {item_id: "3.2"}]
+  - req_id: "REQ-006"
+    req_description: "Deterministic validation, sealed plans and bounded recovery."
+    plan_mapping:
+      items: [{item_id: "2.2"}, {item_id: "3.1"}]
+  - req_id: "REQ-007"
+    req_description: "Verified identity, least privilege and target authorization."
+    plan_mapping:
+      items: [{item_id: "1.2"}, {item_id: "1.3"}]
+  - req_id: "REQ-008"
+    req_description: "Plan authorization, drift protection and concurrency control."
+    plan_mapping:
+      items: [{item_id: "1.2"}, {item_id: "1.3"}, {item_id: "3.1"}]
+  - req_id: "REQ-009"
+    req_description: "Real GitOps and observed deployment reconciliation."
+    plan_mapping:
+      items: [{item_id: "3.1"}]
+  - req_id: "REQ-010"
+    req_description: "Transactional persistence, durable execution and audit."
+    plan_mapping:
+      items: [{item_id: "1.2"}, {item_id: "1.3"}, {item_id: "3.1"}, {item_id: "4.1"}]
+  - req_id: "REQ-011"
+    req_description: "Real probes, gated canaries and verified recovery."
+    plan_mapping:
+      items: [{item_id: "3.2"}]
+  - req_id: "REQ-012"
+    req_description: "Operations, lifecycle limits, resilience and SLOs."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "3.2"}, {item_id: "4.1"}, {item_id: "4.3"}]
+  - req_id: "REQ-013"
+    req_description: "Transparent UI/API support and observed progress."
+    plan_mapping:
+      items: [{item_id: "4.1"}]
+  - req_id: "REQ-014"
+    req_description: "Simulation/live separation and compatible migration."
+    plan_mapping:
+      items: [{item_id: "1.1"}, {item_id: "1.3"}, {item_id: "4.1"}]
+  - req_id: "REQ-015"
+    req_description: "Layered verification and per-profile evidence."
+    plan_mapping:
+      items: [{item_id: "4.2"}, {item_id: "4.3"}]
+  - req_id: "REQ-016"
+    req_description: "Corporate artifacts, cost limits and controlled upgrades."
+    plan_mapping:
+      items: [{item_id: "0.1"}, {item_id: "4.3"}]
+  - req_id: "REQ-017"
+    req_description: "Runtime agent ownership of the complete ingress lifecycle."
+    plan_mapping:
+      items: [{item_id: "1.3"}]
+  - req_id: "REQ-018"
+    req_description: "Pre-authorized, human-required and denied policy outcomes."
+    plan_mapping:
+      items: [{item_id: "1.3"}]
+
+missing_requirements: []
+orphan_plan_items: []
+validation:
+  passed: true
+  errors: []
+  warnings:
+    - "Requirements and implementation profiles are proposed, not owner-approved."
+    - "Phase 0 must approve detailed designs before dependent implementation."

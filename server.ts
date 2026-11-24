@@ -316,7 +316,7 @@ app.get("/api/v1/workflows", (_req: Request, res: Response) => {
 });
 
 // Get Workflow Detail
-app.get("/api/v1/workflows/:workflowId", (req: Request, res: Response) => {
+app.get("/api/v1/workflows/:workflowId", (req: Request<{ workflowId: string }>, res: Response) => {
   const state = store.getState();
   const wf = state.workflows.find((w) => w.workflowId === req.params.workflowId);
   if (!wf) {
@@ -435,7 +435,7 @@ app.post("/api/v1/workflows", async (req: Request, res: Response) => {
 });
 
 // Re-Plan Drifted or Rejected Workflow against current Live ETag
-app.post("/api/v1/workflows/:workflowId/replan", async (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/replan", async (req: Request<{ workflowId: string }>, res: Response) => {
   const state = store.getState();
   const existing = state.workflows.find((w) => w.workflowId === req.params.workflowId);
   if (!existing) {
@@ -476,7 +476,7 @@ const ReviseBodySchema = z.object({
     .optional(),
 });
 
-app.post("/api/v1/workflows/:workflowId/revise", async (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/revise", async (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
   const parsed = ReviseBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -503,7 +503,7 @@ app.post("/api/v1/workflows/:workflowId/revise", async (req: Request, res: Respo
 });
 
 // Promote Progressive Canary Stage (v3)
-app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
   const simulateFailure = Boolean(req.body?.simulateProbeFailure);
   try {
@@ -524,7 +524,7 @@ app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request, res: Res
 });
 
 // Manual Instant Deterministic Rollback (v3)
-app.post("/api/v1/workflows/:workflowId/rollback", (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/rollback", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
   const reason =
     typeof req.body?.reason === "string" && req.body.reason.trim().length > 0
@@ -554,7 +554,7 @@ const DecisionBodySchema = z.object({
 });
 
 // Approve / Reject Workflow at HITL Gate
-app.post("/api/v1/workflows/:workflowId/decision", (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/decision", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId, roles } = getOperatorFromHeaders(req);
   const parsed = DecisionBodySchema.safeParse(req.body);
   if (!parsed.success) {
@@ -752,7 +752,7 @@ app.post("/api/v1/agents/blueprints", (req: Request, res: Response) => {
   }
 });
 
-app.patch("/api/v1/agents/blueprints/:agentId", (req: Request, res: Response) => {
+app.patch("/api/v1/agents/blueprints/:agentId", (req: Request<{ agentId: string }>, res: Response) => {
   try {
     if (req.body && typeof req.body === "object" && (req.body.allowedTools || req.body.serviceAccount)) {
       assertReadOnlyBlueprintSecurity({
@@ -781,7 +781,7 @@ app.patch("/api/v1/agents/blueprints/:agentId", (req: Request, res: Response) =>
   }
 });
 
-app.delete("/api/v1/agents/blueprints/:agentId", (req: Request, res: Response) => {
+app.delete("/api/v1/agents/blueprints/:agentId", (req: Request<{ agentId: string }>, res: Response) => {
   const removed = store.deleteBlueprint(req.params.agentId);
   if (!removed) {
     res.status(404).json({ error: "Agent blueprint not found." });
@@ -803,7 +803,7 @@ const AssignAgentBodySchema = z
     message: "Provide either blueprintId or adHocBlueprint.",
   });
 
-app.post("/api/v1/workflows/:workflowId/assign-agent", async (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/assign-agent", async (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
   try {
     if (req.body?.adHocBlueprint && typeof req.body.adHocBlueprint === "object") {
@@ -888,7 +888,7 @@ const TroubleshootBodySchema = z.object({
 });
 
 // TroubleshootingAgent for specific workflow
-app.post("/api/v1/workflows/:workflowId/troubleshoot", async (req: Request, res: Response) => {
+app.post("/api/v1/workflows/:workflowId/troubleshoot", async (req: Request<{ workflowId: string }>, res: Response) => {
   const state = store.getState();
   const workflow = state.workflows.find((w) => w.workflowId === req.params.workflowId);
   if (!workflow) {
@@ -937,7 +937,7 @@ const RolloutStepBodySchema = z.object({
 });
 
 // Rollout Companion Agent milestone tracker (DNS Cutover + 7-21d WAF Log -> Block)
-app.patch("/api/v1/workflows/:workflowId/rollout-step", (req: Request, res: Response) => {
+app.patch("/api/v1/workflows/:workflowId/rollout-step", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
   const parsed = RolloutStepBodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -982,7 +982,7 @@ app.post("/api/v1/strands/evals/run", async (_req: Request, res: Response) => {
   }
 });
 
-app.get("/api/v1/workflows/:workflowId/strands-session", (req: Request, res: Response) => {
+app.get("/api/v1/workflows/:workflowId/strands-session", (req: Request<{ workflowId: string }>, res: Response) => {
   const state = store.getState();
   const wf = state.workflows.find((w) => w.workflowId === req.params.workflowId);
   if (!wf) {
@@ -1020,7 +1020,7 @@ async function startServer() {
   } else {
     const distDir = path.resolve(process.cwd(), "dist");
     app.use(express.static(distDir));
-    app.get("*", (_req, res) => {
+    app.get("/{*splat}", (_req, res) => {
       const indexHtml = path.join(distDir, "index.html");
       if (fs.existsSync(indexHtml)) {
         res.sendFile(indexHtml);

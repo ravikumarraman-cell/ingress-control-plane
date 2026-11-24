@@ -5,6 +5,19 @@
 
 ---
 
+For the proposed path from simulated workflows to certified AWS, Azure and
+Google Cloud ingress integrations, see the
+[Multi-Cloud Ingress Direction and Implementation Plan](docs/multi-cloud-ingress/plan.md).
+
+**Current maturity:** This is a governance/simulation prototype, not a certified
+production multi-cloud ingress platform. The research-backed
+[Ingress Operating Core](docs/multi-cloud-ingress/core-architecture.md) explains
+the proposed agent coordination, durable execution, conditional human approval
+and real verification architecture. Its
+[extension contract](docs/multi-cloud-ingress/extension-contract.md) and
+[primary-source evidence](docs/multi-cloud-ingress/research.md) describe how to
+extend it safely. These recommendations are not implemented or deployment-approved.
+
 ## Why This Project Exists (In Plain English)
 
 Making networking or ingress changes in production (`HTTPRoute` rules, TLS certificates, WAF policies, canary weights) is famously risky. One wrong hostname, missing TLS rule, or stale change can take down customer traffic.
@@ -69,13 +82,41 @@ live routes  TLS 1.3,     collisions &
 ## Quick Start (Run Locally)
 
 ### Prerequisites
-- **Node.js 20+** (or **Bun**)
-- **npm** (or `bun`)
+- **Node.js 22.12+ (22.x), 24.x, or 26+**, matching the installed Vitest toolchain.
+- **npm**
 
 ### 1. Install Dependencies
 ```bash
 npm install
 ```
+
+The project `.npmrc` selects the corporate Artifactory registry and sets
+`replace-registry-host=npmjs` to avoid duplicating its path in tarball URLs.
+This does not switch to the public npm registry.
+
+Strands Harness 0.5.x and SDK 1.26.x require `@google/genai` 2.x.
+SDK 1.26.x also requires Express 5.x when Express is installed; keep
+`@types/express` on 5.x as well. Preserve these compatible ranges rather than
+bypassing peer checks with `--force` or `--legacy-peer-deps`.
+
+The project also sets `before=2026-11-20T00:00:00Z`, a fixed dependency-resolution
+cutoff that avoids the newer releases rejected by corporate package-age policy.
+It is a snapshot, not a rolling minimum-age check. Advance it only after
+checking corporate curation approval and validating the resulting dependency tree.
+JFrog still enforces all download policies.
+
+If a previous install or lockfile already selected blocked newer versions, run
+`npm update` once to re-resolve the tree within the declared ranges and this
+cutoff, without deleting the lockfile. Subsequent installs can use `npm install`.
+
+The project enforces Node engine requirements so unsupported versions cannot
+silently omit native tooling. If Rolldown reports a missing native binding after
+an install with an older Node version, switch to a supported Node runtime first,
+then run `npm install --include=optional` and retry `npm test`. Do not add the
+WASM fallback or delete the lockfile as a first step.
+
+`npm test` uses isolated in-memory workflow and Strands session stores, so
+parallel test suites do not read or overwrite local persisted workflow state.
 
 ### 2. Optional: Enable Natural-Language AI Intake
 Structured ingress forms, the live multi-agent diagram, approvals, drift locking, and audit logging all work out of the box with zero API keys.

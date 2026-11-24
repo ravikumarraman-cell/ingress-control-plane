@@ -932,9 +932,10 @@ export function verifyAuditChain(events: AuditEvent[]): {
 
 class ControlPlaneStore {
   private state: PersistedState;
+  private readonly persistToDisk = !process.env.VITEST;
 
   constructor() {
-    this.state = this.loadOrInit();
+    this.state = this.persistToDisk ? this.loadOrInit() : buildInitialState();
   }
 
   private loadOrInit(): PersistedState {
@@ -967,6 +968,7 @@ class ControlPlaneStore {
   }
 
   private save(nextState: PersistedState = this.state): void {
+    if (!this.persistToDisk) return;
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const tmpFile = `${STATE_FILE}.tmp`;
     fs.writeFileSync(tmpFile, JSON.stringify(nextState, null, 2), "utf-8");

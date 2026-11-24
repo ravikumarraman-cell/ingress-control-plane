@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
@@ -13,7 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@google/genai": "^3.6.1",
+    "@google/genai": "^2.32.0",
     "@modelcontextprotocol/client": "^2.0.0",
     "@strands-agents/harness": "^0.5.0",
     "@strands-agents/sdk": "^1.26.0",
@@ -25,18 +28,18 @@
     "@vitejs/plugin-react": "^6.1.1",
     "d3": "^7.9.2",
     "dotenv": "^17.2.3",
-    "express": "^4.21.2",
+    "express": "^5.3.0",
     "lucide-react": "^0.546.0",
     "mermaid": "^12.3.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
-    "recharts": "^3.11.1",
+    "recharts": "^3.11.0",
     "vite": "^8.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
