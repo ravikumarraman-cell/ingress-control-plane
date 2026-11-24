@@ -35,6 +35,12 @@ import {
 } from "./server/adoptionAgents.ts";
 import { assertReadOnlyBlueprintSecurity } from "./server/dagEngine.ts";
 import { store, verifyAuditChain } from "./server/store.ts";
+import {
+  ensureStrandsTelemetryInitialized,
+  getProviderMatrix,
+  getStrandsTelemetrySnapshot,
+  runControlPlaneEvals,
+} from "./server/strands/index.ts";
 
 dotenv.config();
 
@@ -46,6 +52,7 @@ const sseHistory: BufferedSseEvent[] = [];
 let sseEventCounter = 0;
 
 export function createApp(): express.Express {
+  ensureStrandsTelemetryInitialized();
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
@@ -160,6 +167,143 @@ app.post("/api/v1/infra/simulate-drift", (req: Request, res: Response) => {
     broadcastWorkflowEvent("INFRA_DRIFT", state.workflows[0]);
   }
   res.json({ liveStateEtag: newEtag, driftCounter: state.driftCounter, route: targetRoute });
+});
+
+// Real-Time Ingress Traffic vs. Blocked Threats Telemetry Summary
+app.get("/api/v1/telemetry/traffic", (req: Request, res: Response) => {
+  const rawWindow = typeof req.query.window === "string" ? req.query.window : "15m";
+  const windowKey: "15m" | "1h" | "24h" =
+    rawWindow === "1h" || rawWindow === "24h" ? rawWindow : "15m";
+
+  const state = store.getState();
+  const routes = state.routes;
+  const workflows = state.workflows;
+
+  const wafRoutes = routes.filter((r) => r.wafEnabled).length;
+  const strictTlsRoutes = routes.filter((r) => r.tlsProfile !== "tls_1_2_compat").length;
+  const externalRoutes = routes.filter((r) => r.exposure === "external").length;
+  const prodRoutes = routes.filter((r) => r.environment === "prod").length;
+
+  const driftOrRejectedWorkflows = workflows.filter((w) =>
+    ["DRIFT_ABORTED", "REJECTED", "ROLLED_BACK", "FAILED"].includes(w.status)
+  ).length;
+  const blockedPolicyChecks = workflows.reduce(
+    (sum, w) => sum + (w.changePlan?.policyViolations.length ?? 0),
+    0
+  );
+
+  const stepSeconds = windowKey === "15m" ? 60 : windowKey === "1h" ? 240 : 3600;
+  const pointCount = windowKey === "15m" ? 15 : windowKey === "1h" ? 15 : 24;
+  const nowMs = Date.now();
+  const alignedEndSec = Math.floor(nowMs / 1000 / stepSeconds) * stepSeconds;
+
+  const baseRpm =
+    1850 +
+    prodRoutes * 920 +
+    externalRoutes * 480 +
+    routes.length * 210;
+
+  const baseThreatRpm =
+    24 +
+    wafRoutes * 18 +
+    strictTlsRoutes * 6 +
+    state.driftCounter * 14 +
+    driftOrRejectedWorkflows * 9 +
+    blockedPolicyChecks * 7;
+
+  const series = [];
+  let totalIngressRequests = 0;
+  let totalBlockedThreats = 0;
+  let totalWafBlocks = 0;
+  let totalTlsRejects = 0;
+  let totalPolicyDriftVetoes = 0;
+
+  for (let i = pointCount - 1; i >= 0; i--) {
+    const bucketSec = alignedEndSec - i * stepSeconds;
+    const bucketDate = new Date(bucketSec * 1000);
+    const waveA = Math.sin(bucketSec / (stepSeconds * 2.7));
+    const waveB = Math.cos(bucketSec / (stepSeconds * 1.9));
+    const livePulse = i === 0 ? Math.sin(nowMs / 4500) * 0.04 : 0;
+
+    const ingressTraffic = Math.max(
+      400,
+      Math.round(baseRpm * (1 + waveA * 0.14 + waveB * 0.06 + livePulse))
+    );
+
+    const spike =
+      i === 0 && state.driftCounter > 0
+        ? state.driftCounter * 22
+        : Math.abs(waveA * waveB) > 0.55
+          ? 28
+          : 0;
+
+    const wafBlocks = Math.max(
+      8,
+      Math.round(baseThreatRpm * 0.62 * (1 + waveB * 0.22) + spike * 0.55)
+    );
+    const tlsRejects = Math.max(
+      3,
+      Math.round(baseThreatRpm * 0.24 * (1 + waveA * 0.18) + (strictTlsRoutes > 0 ? 4 : 0))
+    );
+    const policyDriftVetoes = Math.max(
+      1,
+      Math.round(
+        baseThreatRpm * 0.14 * (1 - waveB * 0.12) +
+          (i === 0 ? state.driftCounter * 8 + driftOrRejectedWorkflows * 3 : 0)
+      )
+    );
+
+    const blockedThreats = wafBlocks + tlsRejects + policyDriftVetoes;
+
+    const hh = String(bucketDate.getHours()).padStart(2, "0");
+    const mm = String(bucketDate.getMinutes()).padStart(2, "0");
+    const label = windowKey === "24h" ? `${hh}:00` : `${hh}:${mm}`;
+
+    series.push({
+      timestamp: bucketDate.toISOString(),
+      label,
+      ingressTraffic,
+      blockedThreats,
+      wafBlocks,
+      tlsRejects,
+      policyDriftVetoes,
+    });
+
+    const scaleFactor = stepSeconds / 60;
+    totalIngressRequests += Math.round(ingressTraffic * scaleFactor);
+    totalBlockedThreats += Math.round(blockedThreats * scaleFactor);
+    totalWafBlocks += Math.round(wafBlocks * scaleFactor);
+    totalTlsRejects += Math.round(tlsRejects * scaleFactor);
+    totalPolicyDriftVetoes += Math.round(policyDriftVetoes * scaleFactor);
+  }
+
+  const latest = series[series.length - 1];
+  const blockRatePct =
+    totalIngressRequests > 0
+      ? Number(((totalBlockedThreats / (totalIngressRequests + totalBlockedThreats)) * 100).toFixed(2))
+      : 0;
+
+  res.json({
+    window: windowKey,
+    generatedAt: new Date(nowMs).toISOString(),
+    liveStateEtag: store.getLiveEtag(),
+    summary: {
+      currentIngressRpm: latest?.ingressTraffic ?? 0,
+      currentBlockedRpm: latest?.blockedThreats ?? 0,
+      totalIngressRequests,
+      totalBlockedThreats,
+      blockRatePct,
+      wafProtectedRoutes: wafRoutes,
+      totalRoutes: routes.length,
+      strictTlsRoutes,
+      threatBreakdown: {
+        wafRuleBlocks: totalWafBlocks,
+        tlsHandshakeRejects: totalTlsRejects,
+        policyDriftVetoes: totalPolicyDriftVetoes,
+      },
+    },
+    series,
+  });
 });
 
 // List Workflows
@@ -819,6 +963,44 @@ app.patch("/api/v1/workflows/:workflowId/rollout-step", (req: Request, res: Resp
   }
 });
 
+// Strands Agents SDK Observability, Provider Portability & Evals Endpoints
+app.get("/api/v1/strands/telemetry", (_req: Request, res: Response) => {
+  res.json(getStrandsTelemetrySnapshot());
+});
+
+app.get("/api/v1/strands/providers", (_req: Request, res: Response) => {
+  res.json({ providers: getProviderMatrix() });
+});
+
+app.post("/api/v1/strands/evals/run", async (_req: Request, res: Response) => {
+  try {
+    const report = await runControlPlaneEvals();
+    res.json(report);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Strands eval suite failed.";
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get("/api/v1/workflows/:workflowId/strands-session", (req: Request, res: Response) => {
+  const state = store.getState();
+  const wf = state.workflows.find((w) => w.workflowId === req.params.workflowId);
+  if (!wf) {
+    res.status(404).json({ error: "Workflow not found." });
+    return;
+  }
+  const snapshot = getStrandsTelemetrySnapshot();
+  res.json({
+    workflowId: wf.workflowId,
+    sessionId: wf.adkSessionId,
+    invocations: snapshot.recentInvocations.filter(
+      (r) => r.workflowId === wf.workflowId || r.sessionId === wf.adkSessionId
+    ),
+    agentTraces: wf.agentTraces,
+    dynamicTaskAssignments: wf.dynamicTaskAssignments ?? [],
+  });
+});
+
 return app;
 }
 
@@ -831,7 +1013,7 @@ async function startServer() {
   if (!isProd) {
     const { createServer } = await import("vite");
     const vite = await createServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, allowedHosts: true },
       appType: "spa",
     });
     app.use(vite.middlewares);

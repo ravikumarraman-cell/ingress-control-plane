@@ -23,6 +23,7 @@ export function useWorkflowStream() {
         queryClient.invalidateQueries({ queryKey: ["workflow", data.workflowId] });
         queryClient.invalidateQueries({ queryKey: ["routes"] });
         queryClient.invalidateQueries({ queryKey: ["audit-log"] });
+        queryClient.invalidateQueries({ queryKey: ["traffic-telemetry"] });
       } catch {
         // Ignore malformed SSE payload
       }

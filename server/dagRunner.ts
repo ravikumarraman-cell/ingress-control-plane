@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { GoogleGenAI, ThinkingLevel, Type, type Schema } from "@google/genai";
+import { Agent, DefaultModelRetryStrategy } from "@strands-agents/sdk";
+import { z } from "zod";
 import {
   CORE_AGENT_STAGE_MAP,
   MAX_DYNAMIC_AGENTS_PER_WORKFLOW,
@@ -18,6 +19,15 @@ import {
   validateAgentDag,
   validateStructuredOutput,
 } from "./dagEngine.ts";
+import {
+  createControlPlaneModelRouter,
+  DEFAULT_CONTROL_PLANE_LIMITS,
+  IngressSteeringHandler,
+  ReadOnlyIsolationIntervention,
+  recordStrandsAgentResult,
+  resolveAllowedReadOnlyTools,
+  SecretAndTlsGuardrailIntervention,
+} from "./strands/index.ts";
 
 export type DynamicAgentExecutor = (params: {
   blueprint: DynamicAgentBlueprint;
@@ -26,74 +36,47 @@ export type DynamicAgentExecutor = (params: {
   request: IngressRequest;
 }) => Promise<unknown>;
 
-function mapOutputFieldTypeToGemini(field: OutputFieldDefinition): Schema {
+function mapOutputFieldTypeToZod(field: OutputFieldDefinition): z.ZodTypeAny {
+  let base: z.ZodTypeAny;
   switch (field.type) {
     case "number":
-      return { type: Type.NUMBER, description: field.description };
+      base = z.number().describe(field.description);
+      break;
     case "boolean":
-      return { type: Type.BOOLEAN, description: field.description };
+      base = z.boolean().describe(field.description);
+      break;
     case "string[]":
-      return {
-        type: Type.ARRAY,
-        items: { type: Type.STRING },
-        description: field.description,
-      };
+      base = z.array(z.string()).describe(field.description);
+      break;
     case "object":
-      return {
-        type: Type.OBJECT,
-        properties: {
-          note: { type: Type.STRING },
-        },
-        description: field.description,
-      };
+      base = z.record(z.string(), z.unknown()).describe(field.description);
+      break;
     case "string":
     default:
-      return { type: Type.STRING, description: field.description };
+      base = z.string().describe(field.description);
+      break;
   }
+  return field.required ? base : base.optional();
 }
 
-export function buildGeminiResponseSchema(outputSchema: OutputFieldDefinition[]): Schema {
-  const dataProperties: Record<string, Schema> = {};
-  const requiredDataKeys: string[] = [];
-
+export function buildStrandsOutputZodSchema(outputSchema: OutputFieldDefinition[]) {
+  const dataShape: Record<string, z.ZodTypeAny> = {};
   for (const field of outputSchema) {
-    dataProperties[field.key] = mapOutputFieldTypeToGemini(field);
-    if (field.required) {
-      requiredDataKeys.push(field.key);
-    }
+    dataShape[field.key] = mapOutputFieldTypeToZod(field);
+  }
+  if (Object.keys(dataShape).length === 0) {
+    dataShape.finding = z.string().optional().describe("Primary factual finding produced by the agent");
   }
 
-  if (Object.keys(dataProperties).length === 0) {
-    dataProperties.finding = {
-      type: Type.STRING,
-      description: "Primary factual finding produced by the agent",
-    };
-  }
-
-  return {
-    type: Type.OBJECT,
-    properties: {
-      summary: { type: Type.STRING, description: "Concise 1-sentence summary of the findings." },
-      riskDelta: {
-        type: Type.STRING,
-        description: 'Must be one of "NONE", "ELEVATE_MEDIUM", or "ELEVATE_HIGH".',
-      },
-      vetoTriggered: {
-        type: Type.BOOLEAN,
-        description: "True only if a critical security or policy violation requires halting downstream execution.",
-      },
-      confidence: {
-        type: Type.NUMBER,
-        description: "Confidence score between 0.0 and 1.0",
-      },
-      data: {
-        type: Type.OBJECT,
-        properties: dataProperties,
-        ...(requiredDataKeys.length > 0 ? { required: requiredDataKeys } : {}),
-      },
-    },
-    required: ["summary", "riskDelta", "vetoTriggered", "confidence", "data"],
-  };
+  return z.object({
+    summary: z.string().describe("Concise 1-sentence summary of the findings."),
+    riskDelta: z.enum(["NONE", "ELEVATE_MEDIUM", "ELEVATE_HIGH"]),
+    vetoTriggered: z
+      .boolean()
+      .describe("True only if a critical security or policy violation requires halting downstream execution."),
+    confidence: z.number().min(0).max(1),
+    data: z.object(dataShape),
+  });
 }
 
 export function synthesizeDeterministicAgentOutput(params: {
@@ -237,27 +220,46 @@ export function synthesizeDeterministicAgentOutput(params: {
   };
 }
 
-export async function runBlueprintWithGeminiOrFallback(params: {
+export async function runBlueprintWithStrands(params: {
   blueprint: DynamicAgentBlueprint;
   resolvedPrompt: string;
   consumedInputs: Record<string, unknown>;
   request: IngressRequest;
 }): Promise<AgentStructuredOutput> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
-    try {
-      const ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
-      });
+  try {
+    const modelRouter = await createControlPlaneModelRouter({
+      allowDeterministicFallback: true,
+      deterministicConfig: {
+        mode: "blueprint",
+        blueprint: params.blueprint,
+        resolvedPrompt: params.resolvedPrompt,
+        consumedInputs: params.consumedInputs,
+        request: params.request,
+      },
+    });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-4-hydrogen",
-        contents: `Task Prompt: ${params.resolvedPrompt}
+    const structuredOutputSchema = buildStrandsOutputZodSchema(params.blueprint.outputSchema);
+    const agent = new Agent({
+      id: params.blueprint.agentId,
+      name: params.blueprint.name,
+      printer: false,
+      model: modelRouter,
+      systemPrompt: `${params.blueprint.systemPrompt}\nYou execute strictly under sa-ingress-readonly and must produce structured output matching the schema.`,
+      tools: resolveAllowedReadOnlyTools(params.blueprint.allowedTools),
+      interventions: [
+        new SecretAndTlsGuardrailIntervention(),
+        new ReadOnlyIsolationIntervention({
+          agentName: params.blueprint.name,
+          allowedTools: params.blueprint.allowedTools,
+        }),
+        new IngressSteeringHandler(),
+      ],
+      retryStrategy: new DefaultModelRetryStrategy({
+        maxAttempts: 2,
+      }),
+    });
+
+    const promptText = `Task Prompt: ${params.resolvedPrompt}
 
 Target Ingress Request:
 ${JSON.stringify(params.request, null, 2)}
@@ -265,28 +267,31 @@ ${JSON.stringify(params.request, null, 2)}
 Allowed Read-Only Tools (sa-ingress-readonly): ${params.blueprint.allowedTools.join(", ") || "none"}
 
 Consumed Upstream Agent Outputs:
-${JSON.stringify(params.consumedInputs, null, 2)}`,
-        config: {
-          systemInstruction: `${params.blueprint.systemPrompt}\nYou run strictly under sa-ingress-readonly and must return JSON conforming to the provided schema.`,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json",
-          responseSchema: buildGeminiResponseSchema(params.blueprint.outputSchema),
-        },
-      });
+${JSON.stringify(params.consumedInputs, null, 2)}`;
 
-      const rawText = (response.text ?? "").trim();
-      if (rawText) {
-        const parsed = JSON.parse(rawText) as unknown;
-        return validateStructuredOutput(parsed, params.blueprint.outputSchema);
-      }
-    } catch {
-      // Fall back to deterministic typed output generator if Gemini fails or schema mismatches
+    const result = await agent.invoke(promptText, {
+      structuredOutputSchema,
+      limits: DEFAULT_CONTROL_PLANE_LIMITS,
+      cancelSignal: AbortSignal.timeout(10_000),
+    });
+
+    recordStrandsAgentResult({
+      agentName: params.blueprint.name,
+      result,
+    });
+
+    if (result.structuredOutput) {
+      return validateStructuredOutput(result.structuredOutput, params.blueprint.outputSchema);
     }
+  } catch {
+    // Fall back to deterministic typed output generator if model invocation fails
   }
 
   const fallback = synthesizeDeterministicAgentOutput(params);
   return validateStructuredOutput(fallback, params.blueprint.outputSchema);
 }
+
+export const runBlueprintWithGeminiOrFallback = runBlueprintWithStrands;
 
 export function blueprintMatchesTrigger(
   bp: DynamicAgentBlueprint,

@@ -13,6 +13,7 @@ import { formatTimeHMS, shortHash } from "../lib/format";
 import type { WorkflowRun } from "../shared/contracts";
 import { BlastRadiusText } from "./StatusLabel";
 import { DataTable } from "./ui/DataTable";
+import { EtagLockIndicator } from "./ui/EtagLockIndicator";
 import { StatusBadge } from "./ui/StatusBadge";
 
 const wfFeatures = tableFeatures({
@@ -25,6 +26,7 @@ const columnHelper = createColumnHelper<typeof wfFeatures, WorkflowRun>();
 
 export interface WorkflowsTableProps {
   workflows: WorkflowRun[];
+  liveStateEtag?: string;
   isLoading?: boolean;
   hasActiveFilters?: boolean;
   onClearFilters?: () => void;
@@ -32,6 +34,7 @@ export interface WorkflowsTableProps {
 
 export function WorkflowsTable({
   workflows,
+  liveStateEtag,
   isLoading = false,
   hasActiveFilters = false,
   onClearFilters,
@@ -95,6 +98,21 @@ export function WorkflowsTable({
           header: "Status",
           cell: (info) => <StatusBadge status={info.getValue()} />,
         }),
+        columnHelper.display({
+          id: "versionLock",
+          header: "Version Lock",
+          cell: (info) => {
+            const row = info.row.original;
+            return (
+              <EtagLockIndicator
+                variant="compact"
+                targetEtag={row.changePlan?.targetStateEtag ?? row.currentStateEtag}
+                liveStateEtag={liveStateEtag}
+                workflowStatus={row.status}
+              />
+            );
+          },
+        }),
         columnHelper.accessor("blastRadius", {
           header: "Blast Radius",
           cell: (info) => <BlastRadiusText score={info.getValue()} />,
@@ -132,7 +150,7 @@ export function WorkflowsTable({
           ),
         }),
       ]),
-    []
+    [liveStateEtag]
   );
 
   const table = useTable({

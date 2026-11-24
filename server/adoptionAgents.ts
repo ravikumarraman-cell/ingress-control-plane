@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { createHarness } from "@strands-agents/harness";
+import { z } from "zod";
 import {
   containsEmbeddedSecret,
   type ActiveIngressRoute,
@@ -17,6 +18,18 @@ import {
   type WorkflowStatus,
 } from "../src/shared/contracts.ts";
 import { renderRouteYaml } from "./store.ts";
+import {
+  createControlPlaneModelRouter,
+  DEFAULT_CONTROL_PLANE_LIMITS,
+  getConfiguredMcpServers,
+  getControlPlaneMemoryManager,
+  hasLiveLlmConfigured,
+  IngressSteeringHandler,
+  recordStrandsAgentResult,
+  resolveAllowedReadOnlyTools,
+  SecretAndTlsGuardrailIntervention,
+  syntheticProbeHttpTool,
+} from "./strands/index.ts";
 
 // Well-known Cloudflare edge egress CIDR prefixes for origin allowlisting (scoped, never 0.0.0.0/0)
 export const CLOUDFLARE_EDGE_CIDRS = [
@@ -37,34 +50,21 @@ export const CLOUDFLARE_EDGE_CIDRS = [
   "131.0.72.0/22",
 ];
 
-function getOptionalGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    return null;
-  }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-}
-
-async function withTimeout<T>(promise: Promise<T>, ms = 3500): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`Gemini request timed out after ${ms}ms`)), ms);
-      }),
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
+const TroubleshootOutputSchema = z.object({
+  category: z.enum([
+    "DNS",
+    "CERT",
+    "NETWORK",
+    "HEALTH_CHECK",
+    "WAF",
+    "POLICY",
+    "DRIFT",
+    "UNSUPPORTED",
+  ]),
+  rootCause: z.string(),
+  plainEnglishExplanation: z.string(),
+  nextActions: z.array(z.string()).min(1).max(5),
+});
 
 export function detectConstrainedUseCasesFromText(text: string): ConstrainedUseCase[] {
   const lower = text.toLowerCase();
@@ -610,32 +610,65 @@ export async function assessOnboardingAndPreflight(params: {
 
   let poweredBy: "gemini" | "deterministic" = "deterministic";
 
-  const ai = getOptionalGeminiClient();
-  if (ai) {
-    try {
-      const resp = await withTimeout(
-        ai.models.generateContent({
-          model: "gemini-4-hydrogen",
-          contents: `Summarize this Ingress onboarding pre-flight verdict concisely in 2 plain-English sentences for an application developer.
+  try {
+    const modelRouter = await createControlPlaneModelRouter({
+      allowDeterministicFallback: true,
+      deterministicConfig: {
+        mode: "onboarding",
+        fallbackText: plainEnglishSummary,
+      },
+    });
+    const onboardingHarness = await createHarness({
+      id: "guided-onboarding-agent",
+      name: "GuidedOnboardingAgent",
+      printer: false,
+      model: modelRouter,
+      builtinTools: [],
+      builtinPlugins: [],
+      skills: false,
+      session: false,
+      memory: false,
+      contextManager: false,
+      mcpServers: getConfiguredMcpServers(),
+      tools: resolveAllowedReadOnlyTools([
+        "get_dns_records",
+        "get_tls_certs",
+        "list_k8s_routes",
+        "evaluate_opa_policies",
+      ]),
+      interventions: [
+        new SecretAndTlsGuardrailIntervention(),
+        new IngressSteeringHandler(),
+      ],
+      systemPrompt:
+        "You are GuidedOnboardingAgent. Be crisp, accurate, and never suggest bypassing Four-Eyes RBAC or disabling WAF permanently.",
+    });
+
+    const result = await onboardingHarness.invoke(
+      `Summarize this Ingress onboarding pre-flight verdict concisely in 2 plain-English sentences for an application developer.
 Verdict: ${verdict}
 App: ${input.appName} (${input.environment}, ${input.exposure}, host=${input.hostname}${input.pathPrefix})
 Missing prerequisites: ${missingPrerequisites.join(" | ") || "None"}`,
-          config: {
-            systemInstruction:
-              "You are GuidedOnboardingAgent. Be crisp, accurate, and never suggest bypassing Four-Eyes RBAC or disabling WAF permanently.",
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          },
-        }),
-        3500
-      );
-      const txt = (resp.text ?? "").trim();
-      if (txt.length >= 20) {
-        plainEnglishSummary = txt.slice(0, 420);
+      {
+        limits: DEFAULT_CONTROL_PLANE_LIMITS,
+        cancelSignal: AbortSignal.timeout(3500),
+      }
+    );
+
+    recordStrandsAgentResult({
+      agentName: "GuidedOnboardingAgent",
+      result,
+    });
+
+    const txt = result.toString().trim();
+    if (txt.length >= 20) {
+      if (hasLiveLlmConfigured() && txt !== plainEnglishSummary) {
         poweredBy = "gemini";
       }
-    } catch {
-      // Retain deterministic summary cleanly if Gemini API is unavailable
+      plainEnglishSummary = txt.slice(0, 420);
     }
+  } catch {
+    // Retain deterministic summary cleanly if harness invocation fails
   }
 
   return {
@@ -836,56 +869,78 @@ export async function diagnoseWorkflowFailure(params: {
   }
 
   let poweredBy: "gemini" | "deterministic" = "deterministic";
-  const ai = getOptionalGeminiClient();
-  if (ai && (params.errorText || params.logs || wf?.errorMessage)) {
+  if (params.errorText || params.logs || wf?.errorMessage) {
+    let usedDeterministicFallback = false;
     try {
-      const resp = await withTimeout(
-        ai.models.generateContent({
-          model: "gemini-4-hydrogen",
-          contents: `Classify and diagnose this enterprise ingress issue cleanly.
+      const modelRouter = await createControlPlaneModelRouter({
+        allowDeterministicFallback: true,
+        deterministicConfig: {
+          mode: "troubleshoot",
+          request: wf?.ingressRequest,
+          structuredFactory: () => {
+            usedDeterministicFallback = true;
+            return {
+              category,
+              rootCause,
+              plainEnglishExplanation,
+              nextActions,
+            };
+          },
+        },
+      });
+
+      const memoryManager = getControlPlaneMemoryManager();
+      const troubleshootHarness = await createHarness({
+        id: "troubleshooting-agent",
+        name: "TroubleshootingAgent",
+        printer: false,
+        model: modelRouter,
+        builtinTools: [],
+        builtinPlugins: [],
+        skills: false,
+        session: false,
+        memory: memoryManager,
+        contextManager: false,
+        mcpServers: getConfiguredMcpServers(),
+        tools: [
+          ...resolveAllowedReadOnlyTools([
+            "get_dns_records",
+            "get_tls_certs",
+            "list_k8s_routes",
+            "evaluate_opa_policies",
+          ]),
+          syntheticProbeHttpTool,
+        ],
+        interventions: [
+          new SecretAndTlsGuardrailIntervention(),
+          new IngressSteeringHandler(),
+        ],
+        systemPrompt:
+          "You are TroubleshootingAgent. Classify into DNS, CERT, NETWORK, HEALTH_CHECK, WAF, POLICY, DRIFT, or UNSUPPORTED. Give up to 5 concrete engineering remediation steps.",
+      });
+
+      const result = await troubleshootHarness.invoke(
+        `Classify and diagnose this enterprise ingress issue cleanly.
 Workflow app: ${wf?.appName ?? "standalone"} (${wf?.environment ?? "unknown"}, host=${wf?.ingressRequest.hostname ?? "unknown"})
 Existing signals: ${combinedSignals.slice(0, 1200)}
-Return strict JSON.`,
-          config: {
-            systemInstruction:
-              "You are TroubleshootingAgent. Classify into DNS, CERT, NETWORK, HEALTH_CHECK, WAF, POLICY, DRIFT, or UNSUPPORTED. Give 3 concrete engineering remediation steps.",
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                category: { type: Type.STRING },
-                rootCause: { type: Type.STRING },
-                plainEnglishExplanation: { type: Type.STRING },
-                nextActions: { type: Type.ARRAY, items: { type: Type.STRING } },
-              },
-              required: ["category", "rootCause", "plainEnglishExplanation", "nextActions"],
-            },
-          },
-        }),
-        3500
-      );
-      const raw = (resp.text ?? "").trim();
-      if (raw) {
-        const parsed = JSON.parse(raw) as {
-          category?: string;
-          rootCause?: string;
-          plainEnglishExplanation?: string;
-          nextActions?: string[];
-        };
-        const validCats: TroubleshootingCategory[] = [
-          "DNS",
-          "CERT",
-          "NETWORK",
-          "HEALTH_CHECK",
-          "WAF",
-          "POLICY",
-          "DRIFT",
-          "UNSUPPORTED",
-        ];
-        if (parsed.category && validCats.includes(parsed.category as TroubleshootingCategory)) {
-          category = parsed.category as TroubleshootingCategory;
+Return structured output matching the schema.`,
+        {
+          structuredOutputSchema: TroubleshootOutputSchema,
+          limits: DEFAULT_CONTROL_PLANE_LIMITS,
+          cancelSignal: AbortSignal.timeout(3500),
         }
+      );
+
+      recordStrandsAgentResult({
+        agentName: "TroubleshootingAgent",
+        workflowId: wf?.workflowId,
+        sessionId: wf?.adkSessionId,
+        result,
+      });
+
+      const parsed = result.structuredOutput as z.infer<typeof TroubleshootOutputSchema> | undefined;
+      if (parsed) {
+        category = parsed.category as TroubleshootingCategory;
         if (parsed.rootCause) rootCause = parsed.rootCause.slice(0, 300);
         if (parsed.plainEnglishExplanation) {
           plainEnglishExplanation = parsed.plainEnglishExplanation.slice(0, 400);
@@ -893,10 +948,26 @@ Return strict JSON.`,
         if (Array.isArray(parsed.nextActions) && parsed.nextActions.length > 0) {
           nextActions = parsed.nextActions.slice(0, 5);
         }
-        poweredBy = "gemini";
+        if (!usedDeterministicFallback && hasLiveLlmConfigured()) {
+          poweredBy = "gemini";
+        }
       }
+
+      // Persist cross-session troubleshooting memory best-effort
+      await memoryManager
+        .add(
+          `[${category}] ${wf?.appName ?? "standalone"} (${wf?.ingressRequest.hostname ?? "unknown"}): ${rootCause}`,
+          {
+            metadata: {
+              category,
+              workflowId: wf?.workflowId ?? "standalone",
+              environment: wf?.environment ?? "unknown",
+            },
+          }
+        )
+        .catch(() => undefined);
     } catch {
-      // Deterministic diagnosis remains intact if Gemini fails
+      // Deterministic diagnosis remains intact if Strands invocation fails
     }
   }
 

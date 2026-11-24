@@ -15,6 +15,8 @@ import type {
   OutputFieldDefinition,
   ReadOnlyToolId,
   RolloutMilestone,
+  TrafficTelemetryResponse,
+  TrafficTelemetryWindow,
   TroubleshootingDiagnosis,
   ValidationGateResult,
   WorkflowHookStage,
@@ -89,6 +91,15 @@ export async function simulateInfraDrift(): Promise<{
 }> {
   const res = await fetch("/api/v1/infra/simulate-drift", {
     method: "POST",
+    headers: buildHeaders(),
+  });
+  return handleJson(res);
+}
+
+export async function fetchTrafficTelemetry(
+  window: TrafficTelemetryWindow = "15m"
+): Promise<TrafficTelemetryResponse> {
+  const res = await fetch(`/api/v1/telemetry/traffic?window=${encodeURIComponent(window)}`, {
     headers: buildHeaders(),
   });
   return handleJson(res);

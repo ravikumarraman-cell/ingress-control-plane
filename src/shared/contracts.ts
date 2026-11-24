@@ -690,3 +690,38 @@ export interface RolloutCompanionPlan {
   blockModeGuardrail: string;
   milestones: RolloutMilestone[];
 }
+
+export type TrafficTelemetryWindow = "15m" | "1h" | "24h";
+
+export interface TrafficTelemetryPoint {
+  timestamp: string;
+  label: string;
+  ingressTraffic: number;
+  blockedThreats: number;
+  wafBlocks: number;
+  tlsRejects: number;
+  policyDriftVetoes: number;
+}
+
+export interface TrafficTelemetryResponse {
+  window: TrafficTelemetryWindow;
+  generatedAt: string;
+  liveStateEtag: string;
+  summary: {
+    currentIngressRpm: number;
+    currentBlockedRpm: number;
+    totalIngressRequests: number;
+    totalBlockedThreats: number;
+    blockRatePct: number;
+    wafProtectedRoutes: number;
+    totalRoutes: number;
+    strictTlsRoutes: number;
+    threatBreakdown: {
+      wafRuleBlocks: number;
+      tlsHandshakeRejects: number;
+      policyDriftVetoes: number;
+    };
+  };
+  series: TrafficTelemetryPoint[];
+}
+

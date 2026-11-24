@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import {
   AlertCircle,
-  AlertTriangle,
   CheckCircle2,
   FileCode2,
   Lock,
   ShieldCheck,
+  Unlock,
   X,
   XCircle,
 } from "lucide-react";
 import { BlastRadiusText } from "../StatusLabel";
 import { getCurrentOperator } from "../../lib/api";
+import { shortHash } from "../../lib/format";
 import type {
   BlastRadiusScore,
   ChangePlan,
@@ -180,7 +181,16 @@ export function ApprovalModal({
             </div>
 
             <div className="p-4 space-y-1">
-              <div className="text-xs font-medium text-slate-500">ETag Lock Verification</div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-slate-500">ETag Version Lock</span>
+                <span
+                  className={`text-[11px] font-mono font-semibold ${
+                    etagMatches ? "text-emerald-700" : "text-red-700"
+                  }`}
+                >
+                  {etagMatches ? "LOCKED" : "STALE"}
+                </span>
+              </div>
               <div className="flex items-center gap-1.5 text-xs font-semibold">
                 {etagMatches ? (
                   <>
@@ -191,13 +201,17 @@ export function ApprovalModal({
                   </>
                 ) : (
                   <>
-                    <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                    <Unlock className="h-4 w-4 text-red-600 shrink-0" />
                     <span className="text-red-700">Live ETag Mismatch</span>
                   </>
                 )}
               </div>
-              <div className="text-[11px] font-mono text-slate-500 truncate tabular-nums">
-                {targetEtag || "No ETag sealed"}
+              <div
+                title={targetEtag || "No ETag sealed"}
+                className="text-[11px] font-mono text-slate-500 truncate tabular-nums"
+              >
+                Plan: {targetEtag ? shortHash(targetEtag, 14) : "none"}
+                {liveStateEtag ? ` · Live: ${shortHash(liveStateEtag, 14)}` : ""}
               </div>
             </div>
 

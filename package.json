@@ -14,6 +14,9 @@
   },
   "dependencies": {
     "@google/genai": "^3.6.1",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@strands-agents/harness": "^0.5.0",
+    "@strands-agents/sdk": "^1.26.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.108.0",
     "@tanstack/react-router": "^1.170.46",
@@ -28,6 +31,7 @@
     "motion": "^12.23.24",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "recharts": "^3.11.1",
     "vite": "^8.3.0",
     "zod": "^4.6.7"
   },

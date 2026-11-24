@@ -64,6 +64,23 @@ const CORE_AGENT_ALIASES: Record<string, string[]> = {
   ValidationRollbackAgent: ["VerifyAgent"],
 };
 
+export const FORBIDDEN_SERVICE_ACCOUNTS = new Set<string>([
+  "sa-ingress-executor",
+  "cluster-admin",
+  "root",
+  "admin",
+]);
+
+export const FORBIDDEN_WRITE_TOOLS = new Set<string>([
+  "kubectl_apply",
+  "kubectl_delete",
+  "kubectl_patch",
+  "terraform_apply",
+  "apply_patch",
+  "write_manifest",
+  "execute_rollout",
+]);
+
 const DISALLOWED_WRITE_PATTERNS = [
   /executor/i,
   /sa-ingress-executor/i,
@@ -77,7 +94,10 @@ const DISALLOWED_WRITE_PATTERNS = [
 export function assertReadOnlyBlueprintSecurity(
   bp: Pick<DynamicAgentBlueprint, "name" | "allowedTools"> & { serviceAccount?: string }
 ): void {
-  if (bp.serviceAccount && bp.serviceAccount !== "sa-ingress-readonly") {
+  if (
+    bp.serviceAccount &&
+    (bp.serviceAccount !== "sa-ingress-readonly" || FORBIDDEN_SERVICE_ACCOUNTS.has(bp.serviceAccount))
+  ) {
     throw new DagValidationError(
       `Security Isolation Violation: Agent "${bp.name}" cannot bind service account "${bp.serviceAccount}". Dynamic agents are strictly locked to sa-ingress-readonly.`,
       "READONLY_ISOLATION_VIOLATION"
@@ -86,6 +106,7 @@ export function assertReadOnlyBlueprintSecurity(
 
   for (const tool of bp.allowedTools ?? []) {
     if (
+      FORBIDDEN_WRITE_TOOLS.has(tool) ||
       !ReadOnlyToolIdSchema.safeParse(tool).success ||
       DISALLOWED_WRITE_PATTERNS.some((p) => p.test(tool))
     ) {

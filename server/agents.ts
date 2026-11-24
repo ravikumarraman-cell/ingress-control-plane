@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { createHarness } from "@strands-agents/harness";
+import { Agent, DefaultModelRetryStrategy } from "@strands-agents/sdk";
+import { z } from "zod";
 import {
   AgentStructuredOutput,
   containsEmbeddedSecret,
@@ -52,6 +54,18 @@ import {
   detectConstrainedUseCasesFromText,
   renderOriginAllowlistTerraform,
 } from "./adoptionAgents.ts";
+import {
+  buildCoreTracesFromGraphResult,
+  createControlPlaneModelRouter,
+  DEFAULT_CONTROL_PLANE_LIMITS,
+  executeCorePipelineWithStrandsGraph,
+  getConfiguredMcpServers,
+  IngressSteeringHandler,
+  ReadOnlyIsolationIntervention,
+  recordStrandsAgentResult,
+  resolveAllowedReadOnlyTools,
+  SecretAndTlsGuardrailIntervention,
+} from "./strands/index.ts";
 
 export {
   DagValidationError,
@@ -109,22 +123,17 @@ export function normalizePipelineConfig(
   };
 }
 
-function getGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    throw new Error(
-      "GEMINI_API_KEY is not configured in Settings > Secrets. Add a Gemini API key or switch to Structured Schema mode."
-    );
-  }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-}
+const NaturalLanguageIntakeOutputSchema = z.object({
+  appName: z.string(),
+  environment: z.enum(["dev", "staging", "prod"]),
+  hostname: z.string(),
+  pathPrefix: z.string(),
+  backendService: z.string(),
+  backendPort: z.number().int().min(1).max(65535),
+  exposure: z.enum(["internal", "external"]),
+  tlsProfile: z.enum(["tls_1_3_strict", "tls_1_2_compat", "mtls_internal"]),
+  rawJustification: z.string(),
+});
 
 export async function parseNaturalLanguageIngressRequest(params: {
   naturalLanguagePrompt: string;
@@ -137,10 +146,33 @@ export async function parseNaturalLanguageIngressRequest(params: {
     );
   }
 
-  const ai = getGeminiClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-4-hydrogen",
-    contents: `Parse the following enterprise networking ingress request into strict JSON fields.
+  const modelRouter = await createControlPlaneModelRouter({
+    allowDeterministicFallback: false,
+  });
+
+  const intakeHarness = await createHarness({
+    id: "ingress-intake-agent",
+    name: "IngressIntakeAgent",
+    printer: false,
+    model: modelRouter,
+    builtinTools: [],
+    builtinPlugins: [],
+    skills: false,
+    session: false,
+    memory: false,
+    contextManager: false,
+    mcpServers: getConfiguredMcpServers(),
+    tools: resolveAllowedReadOnlyTools(["get_dns_records", "get_tls_certs"]),
+    interventions: [
+      new SecretAndTlsGuardrailIntervention(),
+      new IngressSteeringHandler(),
+    ],
+    systemPrompt:
+      "You are IngressIntakeAgent. Extract structured networking ingress parameters accurately without inventing secrets.",
+  });
+
+  const result = await intakeHarness.invoke(
+    `Parse the following enterprise networking ingress request into structured fields.
 Requester: ${params.requesterId}
 Ticket: ${params.ticketRef ?? "none"}
 Request: ${params.naturalLanguagePrompt}
@@ -154,56 +186,27 @@ Rules:
 - backendPort must be an integer 1..65535.
 - exposure must be "internal" or "external".
 - tlsProfile must be "tls_1_3_strict", "tls_1_2_compat", or "mtls_internal" (external prod requires "tls_1_3_strict").`,
-    config: {
-      systemInstruction:
-        "You are IngressIntakeAgent. Extract structured networking ingress parameters accurately without inventing secrets.",
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          appName: { type: Type.STRING },
-          environment: { type: Type.STRING },
-          hostname: { type: Type.STRING },
-          pathPrefix: { type: Type.STRING },
-          backendService: { type: Type.STRING },
-          backendPort: { type: Type.INTEGER },
-          exposure: { type: Type.STRING },
-          tlsProfile: { type: Type.STRING },
-          rawJustification: { type: Type.STRING },
-        },
-        required: [
-          "appName",
-          "environment",
-          "hostname",
-          "pathPrefix",
-          "backendService",
-          "backendPort",
-          "exposure",
-          "tlsProfile",
-          "rawJustification",
-        ],
-      },
-    },
+    {
+      structuredOutputSchema: NaturalLanguageIntakeOutputSchema,
+      limits: DEFAULT_CONTROL_PLANE_LIMITS,
+      cancelSignal: AbortSignal.timeout(15_000),
+    }
+  );
+
+  recordStrandsAgentResult({
+    agentName: "IngressIntakeAgent",
+    result,
   });
 
-  const text = (response.text ?? "").trim();
-  if (!text) {
-    throw new Error("IngressIntakeAgent received an empty response from Gemini.");
-  }
-
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    throw new Error("IngressIntakeAgent failed to parse structured JSON from Gemini output.");
+  if (!result.structuredOutput) {
+    throw new Error("IngressIntakeAgent failed to extract structured ingress fields from Strands harness.");
   }
 
   return IngressRequestSchema.parse({
     requestId: crypto.randomUUID(),
     requesterId: params.requesterId,
     ticketRef: params.ticketRef ?? null,
-    ...parsed,
+    ...(result.structuredOutput as Record<string, unknown>),
   });
 }
 
@@ -458,27 +461,53 @@ async function runCustomAgentEvaluation(
   instruction: string,
   req: IngressRequest
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && apiKey !== "MY_GEMINI_API_KEY") {
-    try {
-      const ai = getGeminiClient();
-      const resp = await ai.models.generateContent({
-        model: "gemini-4-hydrogen",
-        contents: `You are ${agentName}, a read-only specialist agent in a networking ingress control plane.
-Instruction: ${instruction}
+  const deterministicFallbackText = `Evaluated "${instruction.slice(0, 72)}" against ${req.hostname}${req.pathPrefix} (${req.environment}/${req.tlsProfile}) — Advisory OK.`;
+  try {
+    const modelRouter = await createControlPlaneModelRouter({
+      allowDeterministicFallback: true,
+      deterministicConfig: {
+        mode: "custom_eval",
+        request: req,
+        fallbackText: deterministicFallbackText,
+      },
+    });
+    const customAgent = new Agent({
+      id: `custom-${agentName.toLowerCase().replace(/[^a-z0-9-]/g, "-")}`,
+      name: agentName,
+      printer: false,
+      model: modelRouter,
+      tools: resolveAllowedReadOnlyTools(["list_k8s_routes", "evaluate_opa_policies"]),
+      interventions: [
+        new SecretAndTlsGuardrailIntervention(),
+        new ReadOnlyIsolationIntervention({
+          agentName,
+          allowedTools: ["list_k8s_routes", "evaluate_opa_policies"],
+        }),
+        new IngressSteeringHandler(),
+      ],
+      retryStrategy: new DefaultModelRetryStrategy({
+        maxAttempts: 2,
+      }),
+      systemPrompt: `You are ${agentName}, a strictly read-only specialist agent (sa-ingress-readonly) in an enterprise ingress control plane.`,
+    });
+
+    const result = await customAgent.invoke(
+      `Instruction: ${instruction}
 Target request: app=${req.appName}, env=${req.environment}, host=${req.hostname}${req.pathPrefix}, backend=${req.backendService}:${req.backendPort}, exposure=${req.exposure}, tls=${req.tlsProfile}.
 Give a concise 1-sentence factual advisory finding (max 140 chars).`,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        },
-      });
-      const txt = (resp.text ?? "").trim();
-      if (txt) return txt.slice(0, 180);
-    } catch {
-      // Fallback gracefully if Gemini call fails
-    }
+      {
+        limits: DEFAULT_CONTROL_PLANE_LIMITS,
+        cancelSignal: AbortSignal.timeout(8_000),
+      }
+    );
+
+    recordStrandsAgentResult({ agentName, result });
+    const txt = result.toString().trim();
+    if (txt) return txt.slice(0, 180);
+  } catch {
+    // Fallback gracefully if Strands model call fails
   }
-  return `Evaluated "${instruction.slice(0, 72)}" against ${req.hostname}${req.pathPrefix} (${req.environment}/${req.tlsProfile}) — Advisory OK.`;
+  return deterministicFallbackText;
 }
 
 function elevateBlastRadius(
@@ -499,6 +528,7 @@ function elevateBlastRadius(
 
 async function buildPlanAndTraces(params: {
   workflowId: string;
+  sessionId: string;
   request: IngressRequest;
   executionMode: ExecutionMode;
   pipelineConfig: WorkflowPipelineConfig;
@@ -866,94 +896,44 @@ async function buildPlanAndTraces(params: {
   });
   recordStageHandoffs(postVerifyOutcome.assignments);
 
-  const traces: AgentStepTrace[] = [
-    {
-      agentName: "IngressIntakeAgent",
-      phase: "INTAKE",
-      accessMode: "NONE",
-      status: "COMPLETED",
-      summary: intakeOutput.summary,
-      durationMs: 180,
-      completedAt: now,
-    },
-    {
-      agentName: "SupervisorAgent",
-      phase: "SUPERVISOR",
-      accessMode: "STATE_CHECKPOINT",
-      status: "COMPLETED",
-      summary: `Dispatched Phase A parallel & ${activeBlueprints.length} hooked dynamic DAG agents (iteration ${params.iteration}/${params.pipelineConfig.maxSupervisorIterations})${
-        params.pipelineConfig.customInstructions
-          ? ` · Guidance: "${params.pipelineConfig.customInstructions.slice(0, 60)}"`
-          : ""
-      }.`,
-      durationMs: 70,
-      completedAt: now,
-    },
-  ];
+  const graphOut = await executeCorePipelineWithStrandsGraph({
+    workflowId: params.workflowId,
+    sessionId: params.sessionId,
+    request: params.request,
+    pipelineConfig: params.pipelineConfig,
+    iteration: params.iteration,
+    liveEtag,
+    routeCount: state.routes.length,
+    customRuleCount: state.customPolicyRules.filter((r) => r.enabled).length,
+    checks,
+    violations,
+    blastRadius,
+    collidingRouteId: collidingRoute?.routeId,
+    initialCanaryWeight,
+    dynamicVetoed,
+    dryRunPassed,
+    planId,
+  });
 
-  if (enabled.has("DiscoveryInventoryAgent")) {
-    traces.push({
-      agentName: "DiscoveryInventoryAgent",
-      phase: "PHASE_A_PARALLEL",
-      accessMode: "READ_ONLY",
-      status: "COMPLETED",
-      summary: discoveryOutput.summary,
-      durationMs: 290,
-      completedAt: now,
-    });
-  }
-
-  if (enabled.has("PolicyComplianceAgent")) {
-    traces.push({
-      agentName: "PolicyComplianceAgent",
-      phase: "PHASE_A_PARALLEL",
-      accessMode: "READ_ONLY",
-      status: dryRunBaselinePass ? "COMPLETED" : "FAILED",
-      summary: `${checks.filter((c) => c.passed).length}/${checks.length} compliance controls passed (incl. ${state.customPolicyRules.filter((r) => r.enabled).length} custom rules).`,
-      durationMs: 150,
-      completedAt: now,
-    });
-  }
-
-  if (enabled.has("ImpactAnalysisAgent")) {
-    traces.push({
-      agentName: "ImpactAnalysisAgent",
-      phase: "PHASE_A_PARALLEL",
-      accessMode: "READ_ONLY",
-      status: "COMPLETED",
-      summary: `Computed BlastRadiusScore: ${blastRadius}.`,
-      durationMs: 175,
-      completedAt: now,
-    });
-  }
-
-  if (enabled.has("CostEstimationAgent")) {
-    const monthlyDelta =
-      params.request.exposure === "external"
-        ? "$24.50/mo (Edge WAF + L7 LB)"
-        : "$4.20/mo (Internal Mesh)";
-    traces.push({
-      agentName: "CostEstimationAgent",
-      phase: "PHASE_A_PARALLEL",
-      accessMode: "READ_ONLY",
-      status: "COMPLETED",
-      summary: `Estimated incremental infra cost: ${monthlyDelta}.`,
-      durationMs: 115,
-      completedAt: now,
-    });
-  }
-
-  if (enabled.has("SecurityPostureAgent")) {
-    traces.push({
-      agentName: "SecurityPostureAgent",
-      phase: "PHASE_A_PARALLEL",
-      accessMode: "READ_ONLY",
-      status: "COMPLETED",
-      summary: `Verified HTTPS redirect, HSTS headers, and ${params.request.tlsProfile} cipher posture.`,
-      durationMs: 130,
-      completedAt: now,
-    });
-  }
+  const traces: AgentStepTrace[] = buildCoreTracesFromGraphResult({
+    graphOut,
+    enabled,
+    intakeOutput,
+    discoveryOutput,
+    checks,
+    customRuleCount: state.customPolicyRules.filter((r) => r.enabled).length,
+    blastRadius,
+    dryRunBaselinePass,
+    dryRunPassed,
+    policyViolations: changePlan.policyViolations,
+    request: params.request,
+    iteration: params.iteration,
+    maxIterations: params.pipelineConfig.maxSupervisorIterations,
+    customInstructions: params.pipelineConfig.customInstructions,
+    activeBlueprintCount: activeBlueprints.length,
+    initialCanaryWeight,
+    now,
+  });
 
   for (const custom of params.pipelineConfig.customAgents) {
     const finding = await runCustomAgentEvaluation(
@@ -1005,8 +985,10 @@ async function buildPlanAndTraces(params: {
       phase: "PHASE_B_SEQUENTIAL",
       accessMode: "READ_ONLY",
       status: "COMPLETED",
-      summary: `Synthesized HTTPRoute YAML (initial weight ${initialCanaryWeight}%), Terraform HCL, and unified diff.`,
-      durationMs: 320,
+      summary:
+        graphOut.nodeSummaries.ChangePlanningAgent ||
+        `Synthesized HTTPRoute YAML (initial weight ${initialCanaryWeight}%), Terraform HCL, and unified diff.`,
+      durationMs: graphOut.nodeDurations.ChangePlanningAgent ?? 320,
       completedAt: now,
     },
     {
@@ -1015,9 +997,10 @@ async function buildPlanAndTraces(params: {
       accessMode: "READ_ONLY",
       status: dryRunPassed ? "COMPLETED" : "FAILED",
       summary: dryRunPassed
-        ? "Dry-run passed; deterministic RollbackPlan sealed."
+        ? graphOut.nodeSummaries.ValidationRollbackAgent ||
+          "Dry-run passed; deterministic RollbackPlan sealed."
         : `Dry-run blocked: ${changePlan.policyViolations.join("; ")}`,
-      durationMs: 210,
+      durationMs: graphOut.nodeDurations.ValidationRollbackAgent ?? 210,
       completedAt: now,
     }
   );
@@ -1114,11 +1097,13 @@ export async function createAndPlanWorkflow(params: {
 }): Promise<WorkflowRun> {
   const state = store.getState();
   const workflowId = crypto.randomUUID();
+  const sessionId = `adk-sess-${workflowId.slice(0, 8)}`;
   const now = new Date().toISOString();
   const pipelineConfig = normalizePipelineConfig(params.pipelineConfig);
 
   const built = await buildPlanAndTraces({
     workflowId,
+    sessionId,
     request: params.request,
     executionMode: params.executionMode,
     pipelineConfig,
@@ -1127,7 +1112,7 @@ export async function createAndPlanWorkflow(params: {
 
   const workflow: WorkflowRun = {
     workflowId,
-    adkSessionId: `adk-sess-${workflowId.slice(0, 8)}`,
+    adkSessionId: sessionId,
     ticketRef: params.request.ticketRef ?? null,
     requesterId: params.request.requesterId,
     appName: params.request.appName,
@@ -1289,6 +1274,7 @@ export async function assignAgentToWorkflow(params: {
 
   const built = await buildPlanAndTraces({
     workflowId: workflow.workflowId,
+    sessionId: workflow.adkSessionId,
     request: workflow.ingressRequest,
     executionMode: workflow.executionMode,
     pipelineConfig: nextConfig,
@@ -1373,6 +1359,7 @@ export async function reviseWorkflowWithAgentFeedback(params: {
   const nextIter = currentIter + 1;
   const built = await buildPlanAndTraces({
     workflowId: workflow.workflowId,
+    sessionId: workflow.adkSessionId,
     request: nextRequest,
     executionMode: workflow.executionMode,
     pipelineConfig: nextConfig,

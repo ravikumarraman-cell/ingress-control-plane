@@ -11,8 +11,10 @@ import {
 import { RefreshCw, ShieldCheck, X } from "lucide-react";
 import { WorkflowsTable } from "../components/WorkflowsTable";
 import { ControlPlaneStatusDashboard } from "../components/dashboard/ControlPlaneStatusDashboard";
+import { IngressTrafficWidget } from "../components/dashboard/IngressTrafficWidget";
 import { DataTable } from "../components/ui/DataTable";
 import { PageHeader } from "../components/ui/PageHeader";
+import { PendingApprovalsPanel } from "../components/workflows/PendingApprovalsPanel";
 import { SearchFilterBar } from "../components/ui/SearchFilterBar";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs";
 import { fetchRoutes, fetchWorkflows, simulateInfraDrift } from "../lib/api";
@@ -226,6 +228,15 @@ export function WorkflowsPage() {
         onShowRoutes={() => setActiveTab("routes")}
       />
 
+      <IngressTrafficWidget />
+
+      <PendingApprovalsPanel
+        workflows={allWorkflows}
+        routes={allRoutes}
+        liveStateEtag={liveEtag}
+        isLoading={workflowsQuery.isLoading || routesQuery.isLoading}
+      />
+
       {/* Filter & Segmented Tab Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-wrap">
@@ -288,6 +299,7 @@ export function WorkflowsPage() {
         {activeTab === "workflows" ? (
           <WorkflowsTable
             workflows={filteredWorkflows}
+            liveStateEtag={liveEtag}
             isLoading={workflowsQuery.isLoading || routesQuery.isLoading}
             hasActiveFilters={hasActiveFilters}
             onClearFilters={clearAllFilters}
