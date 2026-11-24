@@ -2,212 +2,365 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Governed Multi-Agent Ingress Control Plane – Leadership Brief</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ingress Control Plane | Leadership Brief | November 24, 2026</title>
+<base href="https://github.com/ravikumarraman-cell/ingress-control-plane/blob/8a54cb7/docs/">
 <style>
-  @page { size: Letter; margin: 0.6in 0.65in; }
+  @page { size: Letter; margin: 0.55in 0.65in; }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; color: #0f172a; font-size: 10.5pt; line-height: 1.45; margin: 0; }
-  h1 { font-size: 26pt; margin: 0 0 6px; color: #1e3a8a; line-height: 1.1; }
-  h2 { font-size: 15pt; color: #1e3a8a; border-bottom: 2px solid #2563eb; padding-bottom: 4px; margin: 0 0 10px; }
-  h3 { font-size: 11.5pt; margin: 14px 0 4px; color: #1e293b; }
-  p { margin: 0 0 8px; }
-  .sub { color: #475569; font-size: 12pt; margin-bottom: 18px; }
-  .page { page-break-after: always; }
-  .page:last-child { page-break-after: auto; }
-  .kpis { display: flex; gap: 10px; margin: 14px 0; }
-  .kpi { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #f8fafc; }
-  .kpi b { display: block; font-size: 17pt; color: #2563eb; }
-  .kpi span { font-size: 9pt; color: #475569; }
-  table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 6px 0 10px; }
-  th { background: #1e3a8a; color: #fff; text-align: left; padding: 6px 8px; }
-  td { border-bottom: 1px solid #e2e8f0; padding: 4px 7px; vertical-align: top; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  .callout { background: #fffbeb; border-left: 4px solid #d97706; padding: 8px 12px; margin: 10px 0; font-size: 10pt; }
-  .steps { counter-reset: s; padding: 0; list-style: none; }
-  .steps li { counter-increment: s; margin: 0 0 7px; padding-left: 34px; position: relative; }
-  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; background: #2563eb; color: #fff; text-align: center; line-height: 24px; font-weight: 700; font-size: 10pt; }
-  .tag { display: inline-block; font-size: 8.5pt; padding: 1px 7px; border-radius: 10px; background: #dbeafe; color: #1e3a8a; margin-right: 4px; }
-  .foot { color: #64748b; font-size: 8.5pt; margin-top: 14px; }
-  svg { width: 100%; height: auto; }
+  body { margin: 0; color: #172b42; font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.4; }
+  .page { break-after: page; }
+  .page:last-child { break-after: auto; }
+  .eyebrow { color: #45627a; font-size: 9pt; font-weight: bold; letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 12px; }
+  h1 { color: #153d63; font-size: 27pt; line-height: 1.1; margin: 0 0 12px; }
+  h2 { color: #153d63; font-size: 17pt; line-height: 1.2; margin: 0 0 12px; }
+  h3 { color: #153d63; font-size: 11.5pt; margin: 16px 0 6px; }
+  p { margin: 0 0 9px; }
+  ul, ol { margin: 6px 0 12px; padding-left: 21px; }
+  li { margin: 0 0 5px; }
+  .lead { font-size: 12pt; line-height: 1.4; }
+  .callout { border-left: 4px solid #25658a; background: #eef5fa; padding: 10px 12px; margin: 12px 0; }
+  .caution { border-left-color: #9a6700; background: #fff7e5; }
+  .callout p:last-child { margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 8px 0 12px; }
+  th { text-align: left; color: white; background: #153d63; padding: 7px 9px; }
+  td { vertical-align: top; padding: 7px 9px; border-bottom: 1px solid #d7e2ec; }
+  tr:nth-child(even) td { background: #f5f8fb; }
+  th:first-child { width: 27%; }
+  tr, .callout, .step, .cards { break-inside: avoid; }
+  .step { border: 1px solid #b7cddd; border-radius: 7px; padding: 8px 12px; background: #f5f8fb; }
+  .step strong { display: block; color: #153d63; margin-bottom: 2px; }
+  .arrow { text-align: center; color: #45627a; font-size: 9pt; padding: 4px 0; }
+  .cards { display: flex; gap: 9px; }
+  .card { flex: 1; border: 1px solid #b7cddd; border-radius: 7px; padding: 8px 10px; font-size: 9.5pt; }
+  .card strong { display: block; color: #153d63; margin-bottom: 4px; }
+  .allow { border-top: 4px solid #28724f; }
+  .review { border-top: 4px solid #9a6700; }
+  .deny { border-top: 4px solid #a23b35; }
+  .small { font-size: 9pt; color: #45627a; }
+  .foot { border-top: 1px solid #d7e2ec; margin-top: 14px; padding-top: 7px; font-size: 8.5pt; color: #45627a; }
+  a { color: #153d63; text-decoration: underline; }
+  figure { margin: 14px 0; break-inside: avoid; }
+  svg.diagram { display: block; width: 100%; height: auto; font-family: Arial, Helvetica, sans-serif; }
+  .diagram rect { fill: #f5f8fb; stroke: #8baac1; stroke-width: 1.5; }
+  .diagram .trusted { fill: #eef5fa; stroke: #25658a; }
+  .diagram .human { fill: #fff7e5; stroke: #9a6700; }
+  .diagram .writer { fill: #edf7f0; stroke: #28724f; }
+  .diagram .blocked { fill: #fff1ef; stroke: #a23b35; }
+  .diagram text { fill: #172b42; font-size: 13px; text-anchor: middle; }
+  .diagram .heading { fill: #153d63; font-size: 14px; font-weight: bold; }
+  .diagram .label { fill: #45627a; font-size: 12px; }
+  .diagram .edge { fill: none; stroke: #45627a; stroke-width: 1.7; }
+  .diagram .observe { stroke-dasharray: 5 4; }
+  figcaption { font-size: 9pt; color: #45627a; margin-top: 8px; }
+  @media print {
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
 
-<!-- PAGE 1 -->
-<div class="page">
-  <h1>Governed Multi-Agent<br>Ingress Control Plane</h1>
-  <div class="sub">Leadership brief: how specialist AI agents collaborate to deliver safe, self-service ingress changes</div>
+<section class="page" aria-labelledby="summary-title">
+  <div class="eyebrow">Leadership decision brief | November 24, 2026 | 1 of 7</div>
+  <h1 id="summary-title">A governed front door<br>for enterprise applications</h1>
+  <p class="lead">Use specialist AI agents to prepare and coordinate application access changes, while trusted software enforces permission and people approve when policy requires.</p>
 
-  <h2>The problem</h2>
-  <p>Onboarding an application to the enterprise ingress platform today takes days of tickets, specialist knowledge (Kubernetes, DNS, TLS, WAF) and manual compliance sign-off. Teams hesitate to migrate because a bad routing change can take down production.</p>
+  <h3>What is ingress?</h3>
+  <p><b>Ingress is how a user or system reaches an application.</b> It connects the application address, encrypted connection, traffic routing and security checks. A control plane manages those settings; it does not carry the application's live traffic.</p>
 
-  <h2>The solution in one paragraph</h2>
-  <p>A developer describes what they need in plain English. A coordinated team of <b>specialist AI agents</b> analyses the live environment in parallel, checks policy, scores risk, drafts the exact configuration change and pre-computes a rollback. <b>A human approver signs off</b>, and only then does a tightly-scoped execution agent apply the change progressively, watching health probes and rolling back automatically if anything degrades. Every handoff is recorded in a tamper-evident audit log.</p>
+  <h3>Why this matters</h3>
+  <p>These changes cross application, platform, network and security teams. The proposed system gives teams one request, a clear plan, an accountable approval path and evidence that the application works. It aims to reduce manual handoffs and inconsistent changes.</p>
 
-  <div class="kpis">
-    <div class="kpi"><b>3–5×</b><span>faster onboarding (days → minutes)</span></div>
-    <div class="kpi"><b>0</b><span>unapproved production changes</span></div>
-    <div class="kpi"><b>&lt; 60 s</b><span>deterministic automatic rollback</span></div>
-    <div class="kpi"><b>100%</b><span>agent handoffs audited (SHA-256 chain)</span></div>
+  <div class="callout caution">
+    <p><b>Current status: a working governance and simulation prototype.</b> It is not a production-ready multi-cloud platform. A successful demo does not prove that real infrastructure changed or that real traffic is healthy.</p>
   </div>
 
-  <h2>Four barriers removed</h2>
-  <table>
-    <tr><th>Barrier today</th><th>How the agents address it</th></tr>
-    <tr><td>Steep Kubernetes / WAF learning curve</td><td>The Intake agent turns plain-English intent into compliant YAML/HCL.</td></tr>
-    <tr><td>Fear of breaking production</td><td>Parallel pre-flight checks detect route collisions, lock the cluster state, and pre-compute the rollback.</td></tr>
-    <tr><td>Slow security &amp; compliance sign-off</td><td>Policy and Security agents enforce TLS 1.3, WAF and four-eyes review before an approver ever sees the change.</td></tr>
-    <tr><td>Platform team becomes a bottleneck</td><td>Security, FinOps and Platform teams add new specialist agents at runtime, with no code deploy.</td></tr>
-  </table>
-  <div class="callout"><b>Design principle:</b> AI reasons and recommends; <b>deterministic code and humans decide and execute.</b> The AI never holds write credentials until a signed human approval exists.</div>
-</div>
-
-<!-- PAGE 2 -->
-<div class="page">
-  <h2>How the agents interact</h2>
-  <p>Work flows top to bottom. Each stage hands structured, validated data to the next, and read-only analysis is separated from write execution.</p>
-
-<svg viewBox="0 0 760 800" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
-  <defs>
-    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#475569"/></marker>
-  </defs>
-  <style>
-    .t{font-size:12px;font-weight:700;text-anchor:middle}
-    .s{font-size:10px;text-anchor:middle;fill:#334155}
-    .l{font-size:10px;fill:#475569;font-style:italic}
-    .band{font-size:11px;font-weight:700;fill:#1e3a8a}
-    line,path.ar{stroke:#475569;stroke-width:1.6;fill:none;marker-end:url(#a)}
-  </style>
-
-  <!-- Requester -->
-  <rect x="270" y="5" width="220" height="40" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
-  <text class="t" x="380" y="23">Requester</text><text class="s" x="380" y="37">Plain-English ingress request</text>
-  <line x1="380" y1="45" x2="380" y2="70"/>
-
-  <!-- Intake -->
-  <rect x="230" y="70" width="300" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-  <text class="t" x="380" y="89">IngressIntakeAgent</text><text class="s" x="380" y="106">Structures the request · rejects secrets · no infra access</text>
-  <line x1="380" y1="118" x2="380" y2="140"/>
-  <text class="l" x="392" y="134">validated IngressRequest</text>
-
-  <!-- Supervisor -->
-  <rect x="230" y="140" width="300" height="48" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
-  <text class="t" x="380" y="159">SupervisorAgent</text><text class="s" x="380" y="176">Dispatches work · bounds loops · escalates risk</text>
-  <line x1="380" y1="188" x2="380" y2="215"/>
-
-  <!-- Phase A -->
-  <rect x="10" y="215" width="740" height="165" rx="10" fill="#f0f9ff" stroke="#38bdf8" stroke-dasharray="5 4"/>
-  <text class="band" x="22" y="234">PHASE A · PARALLEL · READ-ONLY (sa-ingress-readonly)</text>
-  <rect x="25" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
-  <text class="t" x="107" y="268">Discovery</text>
-  <text class="s" x="107" y="286">Reads routes, load balancer,</text><text class="s" x="107" y="299">DNS, TLS certificates</text>
-  <text class="s" x="107" y="320" fill="#1e3a8a">→ topology snapshot</text><text class="s" x="107" y="334" fill="#1e3a8a">+ state fingerprint (ETag)</text>
-  <rect x="205" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
-  <text class="t" x="287" y="268">Policy &amp; Compliance</text>
-  <text class="s" x="287" y="286">Evaluates WAF, TLS 1.3,</text><text class="s" x="287" y="299">IP-pool &amp; OPA rules</text>
-  <text class="s" x="287" y="326" fill="#1e3a8a">→ policy report</text>
-  <rect x="385" y="248" width="165" height="108" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.5"/>
-  <text class="t" x="467" y="268">Impact Analysis</text>
-  <text class="s" x="467" y="286">Finds route collisions,</text><text class="s" x="467" y="299">checks backend health</text>
-  <text class="s" x="467" y="326" fill="#1e3a8a">→ blast radius</text><text class="s" x="467" y="340" fill="#1e3a8a">LOW / MEDIUM / HIGH</text>
-  <rect x="565" y="248" width="170" height="108" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5 3"/>
-  <text class="t" x="650" y="268">On-the-fly specialists</text>
-  <text class="s" x="650" y="286">FinOps cost · Security posture</text><text class="s" x="650" y="299">Data residency · custom checks</text>
-  <text class="s" x="650" y="326" fill="#166534">added at runtime, read-only,</text><text class="s" x="650" y="340" fill="#166534">can veto or raise risk</text>
-  <line x1="380" y1="380" x2="380" y2="410"/>
-  <text class="l" x="392" y="400">snapshot + policy + risk handed to planning</text>
-
-  <!-- Phase B -->
-  <rect x="10" y="410" width="740" height="100" rx="10" fill="#faf5ff" stroke="#a855f7" stroke-dasharray="5 4"/>
-  <text class="band" x="22" y="429" fill="#6b21a8" style="fill:#6b21a8">PHASE B · SEQUENTIAL · PLAN &amp; PROVE (still no write access)</text>
-  <rect x="60" y="440" width="270" height="56" rx="8" fill="#fff" stroke="#7e22ce" stroke-width="1.5"/>
-  <text class="t" x="195" y="460">ChangePlanningAgent</text><text class="s" x="195" y="476">Drafts exact YAML / Terraform + line diff</text>
-  <rect x="430" y="440" width="270" height="56" rx="8" fill="#fff" stroke="#7e22ce" stroke-width="1.5"/>
-  <text class="t" x="565" y="460">ValidationRollbackAgent</text><text class="s" x="565" y="476">Server-side dry-run · pre-computes rollback</text>
-  <line x1="330" y1="468" x2="430" y2="468"/>
-  <line x1="380" y1="510" x2="380" y2="540"/>
-  <text class="l" x="392" y="530">signed-ready ChangePlan (digest + rollback)</text>
-
-  <!-- Human gate -->
-  <rect x="200" y="540" width="360" height="56" rx="8" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
-  <text class="t" x="380" y="561">HUMAN APPROVAL GATE</text><text class="s" x="380" y="578">Reviewer ≠ requester · reviews diff, risk &amp; policy · signs approval</text>
-  <line x1="380" y1="596" x2="380" y2="625"/>
-  <text class="l" x="392" y="616">cryptographically signed ApprovalDecision</text>
-
-  <!-- Execution -->
-  <rect x="200" y="625" width="360" height="62" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
-  <text class="t" x="380" y="645">ExecutionAgent (only agent with write access)</text>
-  <text class="s" x="380" y="662">Verifies signature + plan digest + no drift since analysis</text>
-  <text class="s" x="380" y="676">Applies canary 10% → 50% → 100% · runs synthetic probes</text>
-  <path class="ar" d="M300,687 L300,735"/><path class="ar" d="M460,687 L460,735"/>
-  <text class="l" x="170" y="714">probes pass</text><text class="l" x="470" y="714">probe fails / drift detected</text>
-
-  <rect x="190" y="735" width="220" height="50" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-  <text class="t" x="300" y="756">COMPLETED</text><text class="s" x="300" y="772">Audited, live, verified</text>
-  <rect x="420" y="735" width="270" height="50" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
-  <text class="t" x="555" y="756">AUTOMATIC ROLLBACK / ABORT</text><text class="s" x="555" y="772">Pre-computed plan, &lt; 60 s, no AI involved</text>
-</svg>
-</div>
-
-<!-- PAGE 3 -->
-<div class="page">
-  <h2>What each agent does and hands over</h2>
-  <table>
-    <tr><th style="width:21%">Agent</th><th style="width:12%">Stage</th><th>Responsibility</th><th style="width:24%">Hands over</th></tr>
-    <tr><td><b>IngressIntakeAgent</b></td><td>Intake</td><td>Converts the natural-language request into a validated request; blocks private keys and tokens; asks for missing environment info.</td><td>Structured request</td></tr>
-    <tr><td><b>SupervisorAgent</b></td><td>Intake / control</td><td>Coordinates the pipeline, limits retries, fails or escalates unresolvable violations, and forces human review for production or HIGH-risk changes.</td><td>Routing &amp; escalation decisions</td></tr>
-    <tr><td><b>Discovery / Inventory</b></td><td>A (parallel)</td><td>Reads live routes, load balancers, DNS and certificates; fingerprints the state so later drift is detectable.</td><td>Topology snapshot + ETag</td></tr>
-    <tr><td><b>Policy &amp; Compliance</b></td><td>A (parallel)</td><td>Checks WAF, TLS 1.3, IP-pool and organisational policy rules.</td><td>Policy report</td></tr>
-    <tr><td><b>Impact Analysis</b></td><td>A (parallel)</td><td>Detects hostname/path collisions and backend health; scores blast radius.</td><td>Blast-radius score</td></tr>
-    <tr><td><b>Specialist agents</b><br><span style="font-size:8.5pt">(on-the-fly)</span></td><td>Any</td><td>Cost estimation, security posture, data residency and more; defined at runtime, read-only, can raise risk or pause for human review.</td><td>Typed JSON outputs</td></tr>
-    <tr><td><b>ChangePlanningAgent</b></td><td>B (sequential)</td><td>Generates the exact configuration (including scoped CDN allow-lists) and a readable diff.</td><td>Draft change plan</td></tr>
-    <tr><td><b>ValidationRollbackAgent</b></td><td>B (sequential)</td><td>Dry-runs the plan against the platform and pre-computes a deterministic rollback.</td><td>Validated plan + rollback</td></tr>
-    <tr><td><b>ExecutionAgent</b></td><td>Execute</td><td>Applies only the exact approved plan; progressive canary; synthetic health probes; triggers rollback.</td><td>Outcome + audit events</td></tr>
+  <table aria-label="Current capability versus production gap">
+    <tr><th>Area</th><th>What exists today</th><th>What remains to prove</th></tr>
+    <tr><td>Request and review</td><td>Forms, agent workflow, configuration drafts and approval screens.</td><td>Verified corporate identity and permissions.</td></tr>
+    <tr><td>Analysis and safety</td><td>Local policy checks, change fingerprints and simulated failure handling.</td><td>Authoritative cloud observations and enforced security boundaries.</td></tr>
+    <tr><td>Deployment and recovery</td><td>Simulated change requests, traffic shifts and recovery outcomes.</td><td>Real deployment, traffic tests and recovery under failure.</td></tr>
+    <tr><td>Agent runtime</td><td>Strands is integrated into the application.</td><td>Durable production coordination and approved integrations.</td></tr>
   </table>
 
-  <h2>Guardrails leadership can rely on</h2>
-  <table>
-    <tr><th style="width:30%">Control</th><th>What it guarantees</th></tr>
-    <tr><td>Read / write credential separation</td><td>Analysis agents are technically unable to change anything. Only the Execution agent holds write access, and only after approval.</td></tr>
-    <tr><td>Four-eyes human approval</td><td>The requester can never approve their own production or HIGH-risk change.</td></tr>
-    <tr><td>Signed plan digest</td><td>What the human approved is byte-for-byte what is executed; tampering halts execution.</td></tr>
-    <tr><td>Anti-drift lock</td><td>If live infrastructure changed after analysis, execution aborts and requires re-planning.</td></tr>
-    <tr><td>Deterministic rollback</td><td>Rollback is pre-computed and run by code in under 60 seconds, with no AI in the loop.</td></tr>
-    <tr><td>Tamper-evident audit log</td><td>Every handoff, decision and approval is chained with SHA-256 for internal and external audit.</td></tr>
-    <tr><td>Validated agent graph</td><td>New agents are checked for cycles and read-only tools before joining the pipeline.</td></tr>
+  <h3>Decision requested</h3>
+  <p>Endorse a <b>gated pilot on one explicitly selected cloud setup</b>, subject to scope, ownership, corporate software approval and a costed delivery plan. Do not authorize general production writes or advertise support for every cloud configuration.</p>
+  <p class="small">Expected benefits are hypotheses to measure. No onboarding speedup, cost saving, availability level or universal recovery time has been demonstrated.</p>
+  <div class="foot">Basis: repository baseline 8a54cb7 and the current multi-cloud architecture and roadmap. All operating-model diagrams in this brief describe the proposed production design.</div>
+</section>
+
+<section class="page" aria-labelledby="flow-title">
+  <div class="eyebrow">Proposed operating model | 2 of 7</div>
+  <h2 id="flow-title">How the agents work together</h2>
+  <p>A trusted workflow coordinator tracks the work, its deadlines and its evidence. Agents exchange structured findings, not unrestricted instructions. Only independent analysis runs in parallel.</p>
+
+  <div class="step"><strong>1. Understand the request</strong>Intake confirms the application, target environment, requested access and missing information.</div>
+  <div class="arrow">Confirmed request goes to discovery</div>
+  <div class="step"><strong>2. Establish the facts</strong>Discovery collects real routing, network, certificate and application observations, recording their source and age.</div>
+  <div class="arrow">The same observations go to the required specialists</div>
+  <div class="cards">
+    <div class="card"><strong>Security and policy</strong>Check requirements and flag missing evidence.</div>
+    <div class="card"><strong>Impact analysis</strong>Identify affected applications and conflicting changes.</div>
+    <div class="card"><strong>Optional specialists</strong>Check cost, location restrictions or other approved needs.</div>
+  </div>
+  <div class="arrow">Findings are combined; mandatory gaps stop the change</div>
+  <div class="step"><strong>3. Prepare and validate the plan</strong>Planning proposes the change. Trusted code builds and checks the exact configuration, affected resources and recovery limits.</div>
+  <div class="arrow">The resolved plan goes to authorization</div>
+  <div class="step"><strong>4. Decide whether it is permitted</strong>Policy allows an already authorized action, requests human approval or denies it. A human reviews only when required.</div>
+  <div class="arrow">Only a currently authorized plan proceeds</div>
+  <div class="step"><strong>5. Deliver through the approved owner</strong>A separately credentialed executor rechecks permission and current state, then submits the exact change through the chosen deployment system.</div>
+  <div class="arrow">Submission is not completion</div>
+  <div class="step"><strong>6. Prove the result, or recover</strong>Independent checks confirm application access and security behavior. Unhealthy results trigger authorized recovery or a clear operator escalation.</div>
+
+  <div class="callout"><p><b>Agents do the permitted work end-to-end.</b> Humans set automation limits, approve exceptions when required and resolve cases the system cannot safely complete. AI neither grants permission nor sits in the live traffic path.</p></div>
+  <div class="foot">Multiple agents are useful for distinct expertise and independent investigation. More agents are not automatically safer or faster; compare them with a simpler baseline during the pilot.</div>
+</section>
+
+<section class="page" aria-labelledby="approval-title">
+  <div class="eyebrow">Accountability and safety | 3 of 7</div>
+  <h2 id="approval-title">When does a person need to approve?</h2>
+  <p>Security and platform owners define an <b>automation envelope</b>: which targets, actions and limits may run without a new approval, and for how long. The system checks policy against the actual plan and again before a change.</p>
+  <div class="cards">
+    <div class="card allow"><strong>Already authorized</strong>Proceed only inside the approved scope, limits and expiry.</div>
+    <div class="card review"><strong>Human required</strong>Pause for an authorized reviewer; separate requester and reviewer where policy requires.</div>
+    <div class="card deny"><strong>Denied</strong>Stop. Approval cannot override a mandatory prohibition or unsupported capability.</div>
+  </div>
+
+  <h3>A concrete example</h3>
+  <p>A team requests a public address for its application. Agents check the selected cloud setup, encrypted access, security filtering and application health, then prepare a plan. If policy requires review, the reviewer sees the exposure, impact and recovery limits. After authorization, the system deploys, verifies real traffic and reports the outcome.</p>
+
+  <h3>What an approval must show</h3>
+  <p>The exact target and change; why approval is needed; affected users and resources; evidence age; automatic stages that follow; recovery limits; and approval expiry. A materially changed or stale plan must be re-evaluated.</p>
+
+  <table aria-label="Required production safeguards">
+    <tr><th>Required safeguard</th><th>What it means in plain language</th></tr>
+    <tr><td>Separate permissions</td><td>Analysis cannot write infrastructure. The executor receives only narrowly scoped authority; a prompt is not a security boundary.</td></tr>
+    <tr><td>Bound authorization</td><td>Permission applies to a specific plan and target, not anything the AI decides to do later.</td></tr>
+    <tr><td>Fresh-state checks</td><td>Conflicting changes or stale evidence stop the affected work rather than overwrite another owner's settings.</td></tr>
+    <tr><td>Protected records</td><td>Retain decisions, versions, operation receipts and verification evidence. The prototype's local hash chain is not a complete production audit control.</td></tr>
+    <tr><td>Bounded failure handling</td><td>Limit attempts and waiting. On timeout or a lost response, establish what happened before retrying a possibly completed change.</td></tr>
   </table>
-</div>
 
-<!-- PAGE 4 -->
-<div class="page">
-  <h2>Extending governance without engineering effort</h2>
-  <ol class="steps">
-    <li><b>Define a specialist</b> in Agent Studio: goal, read-only tools and the structured outputs it must produce.</li>
-    <li><b>Chain it</b> to earlier agents' outputs; the system validates the dependency graph and rejects loops or write-tool escalation.</li>
-    <li><b>It runs automatically</b> in the correct stage on every workflow, with no redeploy.</li>
-    <li><b>It can veto or raise risk</b>, pausing the change for human sign-off but never bypassing security boundaries.</li>
-  </ol>
-  <p><span class="tag">FinOps cost guardrail</span><span class="tag">Data-residency auditor</span><span class="tag">TLS/WAF posture verifier</span><span class="tag">Post-deploy SLO guard</span><span class="tag">Rollout companion</span><span class="tag">Troubleshooting</span></p>
+  <div class="callout caution"><p><b>No instant-recovery promise.</b> Some changes cannot be undone immediately. Address caches, cloud operations and certificate issuance can take time. Cancellation does not undo a request already accepted by a cloud service.</p></div>
+  <p class="small">The operator view must distinguish simulated, observed, waiting, failed and unknown results, with a reason and next safe action. A heartbeat or animation is not evidence of completed work.</p>
+  <div class="foot">These are production requirements to implement and verify, not guarantees established by the current prototype.</div>
+</section>
 
-  <h2 style="margin-top:20px">Phased delivery</h2>
-  <table>
-    <tr><th style="width:18%">Phase</th><th style="width:30%">Capability</th><th>Risk posture</th></tr>
-    <tr><td><b>v1</b></td><td>Read-only advisory, full analysis, diffs, governance dashboard</td><td>Zero automated writes</td></tr>
-    <tr><td><b>v2</b></td><td>GitOps pull-request execution behind signed human approval</td><td>Changes flow through existing Git review and CI</td></tr>
-    <tr><td><b>v3</b></td><td>Direct gated execution with canary rollout and auto-rollback</td><td>Scoped credentials, probes, &lt; 60 s rollback</td></tr>
+<section class="page" aria-labelledby="core-title">
+  <div class="eyebrow">Reusable core and cloud coverage | 4 of 7</div>
+  <h2 id="core-title">One operating core, qualified integrations</h2>
+  <p>Retain the current TypeScript application and Strands integration. Add the production foundations incrementally instead of rewriting the backend or creating a separate agent platform for each cloud.</p>
+
+  <table aria-label="Recommended foundation responsibilities">
+    <tr><th>Component</th><th>Job in the proposed system</th></tr>
+    <tr><td><b>Strands</b><br>AI reasoning</td><td>Interpret requests, run bounded specialist analysis and explain findings using approved tools.</td></tr>
+    <tr><td><b>Temporal</b><br>Durable coordination</td><td>Keep workflow progress through restarts; manage deadlines, retries and required human waits.</td></tr>
+    <tr><td><b>PostgreSQL</b><br>Business records</td><td>Store plan versions, permissions, decisions, receipts and evidence in transactional records.</td></tr>
+    <tr><td><b>OPA</b><br>Policy authority</td><td>Evaluate the organization's versioned rules. AI recommendations do not replace this decision.</td></tr>
+    <tr><td><b>Existing deployment systems</b></td><td>One designated system owns each resource or setting, avoiding competing writers. Real traffic checks establish success.</td></tr>
+  </table>
+  <p class="small">Temporal, PostgreSQL and OPA are recommendations, not deployed foundations. Official Temporal-Strands integration is documented; exact-version compatibility, approved artifacts, hosting, licensing and recovery still need qualification. Restate is a reviewed alternative if enterprise constraints require it, not a second engine to deploy alongside Temporal.</p>
+
+  <h3>What multi-cloud support will mean</h3>
+  <p><b>AWS, Azure and Google Cloud are initial targets, not certified coverage.</b> Select one cloud first, then qualify one explicit setup per cloud. Each qualification names the products and versions, region restrictions, public or private access, security features and allowed deployment methods.</p>
+  <p>The initial scope is Kubernetes-backed HTTPS applications: application address and routing, network prerequisites, encrypted access, certificates, security filtering and real health checks. Other clouds, specialized protocols, serverless applications and multi-region recovery require separate evidence.</p>
+
+  <h3>Extensible does not mean unrestricted</h3>
+  <p>A new integration must implement the shared contract and pass compatibility, permission, failure and recovery checks. New specialist configurations may reuse already approved read-only tools; <b>new executable tools or cloud permissions require review and qualification</b>.</p>
+  <div class="callout"><p><b>Proof of reuse:</b> Add a second qualified cloud setup without redesigning the core approval, authorization or recovery process. Unsupported requests must be explained and stopped, not silently changed.</p></div>
+  <div class="foot">The core owns coordination and authorization rules. Integrations translate approved work into each cloud's real behavior. Product limitations do not disappear behind a common interface.</div>
+</section>
+
+<section class="page" aria-labelledby="architecture-title">
+  <div class="eyebrow">Proposed architecture diagram | 5 of 7</div>
+  <h2 id="architecture-title">Where responsibilities and permissions sit</h2>
+  <p>One operating core coordinates specialists, policy and execution. Analysis, verification and infrastructure writes use separate permission scopes, even when built from the same codebase.</p>
+  <figure>
+    <svg class="diagram" viewBox="0 0 660 500" role="img" aria-labelledby="architecture-svg-title architecture-svg-desc">
+      <title id="architecture-svg-title">Proposed ingress operating architecture</title>
+      <desc id="architecture-svg-desc">People use a verified API that records business state in PostgreSQL and wakes a Temporal workflow. The workflow consults OPA policy and schedules Strands analysis, trusted plan validation, a scoped executor and independent verification. Only the executor may submit authorized infrastructure changes. Analysis and verification observe the selected platform without writing it.</desc>
+      <defs>
+        <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#45627a"/></marker>
+      </defs>
+      <rect class="human" x="225" y="8" width="210" height="48" rx="7"/>
+      <text class="heading" x="330" y="28">People and automation</text>
+      <text x="330" y="45">Request, review, see outcomes</text>
+      <path class="edge" d="M330 56 V88" marker-end="url(#arch-arrow)"/>
+      <rect class="trusted" x="215" y="88" width="230" height="55" rx="7"/>
+      <text class="heading" x="330" y="110">Verified API and access</text>
+      <text x="330" y="129">Authenticate and authorize target</text>
+      <rect x="480" y="88" width="170" height="55" rx="7"/>
+      <text class="heading" x="565" y="109">PostgreSQL records</text>
+      <text x="565" y="129">Plans, decisions, evidence</text>
+      <path class="edge" d="M445 115 H480" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+      <path class="edge" d="M330 143 V184" marker-end="url(#arch-arrow)"/>
+      <text class="label" x="393" y="166">Recorded request</text>
+      <rect class="trusted" x="215" y="184" width="230" height="72" rx="7"/>
+      <text class="heading" x="330" y="206">Workflow coordinator</text>
+      <text x="330" y="226">Temporal: deadlines and waits</text>
+      <text x="330" y="245">Schedules work; tracks outcomes</text>
+      <rect class="human" x="10" y="184" width="170" height="72" rx="7"/>
+      <text class="heading" x="95" y="206">Policy authority</text>
+      <text x="95" y="226">OPA: allow, review or deny</text>
+      <text x="95" y="245">Human decision if required</text>
+      <path class="edge" d="M215 220 H180" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+      <path class="edge observe" d="M445 202 H460 V158 H565 V143" marker-end="url(#arch-arrow)"/>
+      <text class="label" x="550" y="178">Durable record updates</text>
+      <path class="edge" d="M330 256 V279 H110 V305" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+      <path class="edge" d="M330 279 V305" marker-end="url(#arch-arrow)"/>
+      <path class="edge" d="M330 279 H565 V305" marker-end="url(#arch-arrow)"/>
+      <rect x="10" y="305" width="200" height="72" rx="7"/>
+      <text class="heading" x="110" y="327">Read-only analysis</text>
+      <text x="110" y="347">Strands specialist agents</text>
+      <text x="110" y="366">Return findings; no cloud writes</text>
+      <rect class="writer" x="230" y="305" width="200" height="72" rx="7"/>
+      <text class="heading" x="330" y="327">Scoped executor</text>
+      <text x="330" y="347">Trusted code; exact plan only</text>
+      <text x="330" y="366">Rechecks current authority</text>
+      <rect x="460" y="305" width="190" height="72" rx="7"/>
+      <text class="heading" x="555" y="327">Independent verifier</text>
+      <text x="555" y="347">Observe state and real traffic</text>
+      <text x="555" y="366">Return evidence; no writes</text>
+      <path class="edge observe" d="M110 377 V444 H190" marker-end="url(#arch-arrow)"/>
+      <text class="label" x="66" y="414">Read only</text>
+      <path class="edge" d="M330 377 V426" marker-end="url(#arch-arrow)"/>
+      <text class="label" x="420" y="404">Authorized submission</text>
+      <path class="edge observe" d="M555 377 V452 H470" marker-end="url(#arch-arrow)"/>
+      <text class="label" x="605" y="397">Observe</text>
+      <text class="label" x="605" y="414">and test only</text>
+      <rect class="writer" x="190" y="426" width="280" height="66" rx="7"/>
+      <text class="heading" x="330" y="448">Approved deployment and platform</text>
+      <text x="330" y="468">GitOps / qualified cloud integrations</text>
+      <text x="330" y="486">One owner per resource or setting</text>
+    </svg>
+    <figcaption>Solid arrows show requests, decisions or dispatch; dashed arrows show record updates or observation. Findings, receipts and verification results return to the coordinator and protected records; not every return arrow is drawn.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Keep the traffic path separate:</b> Users reach the cloud front door and application directly. Neither AI nor the workflow coordinator handles their live requests. Trusted plan compilation and validation are expanded on the next page.</p></div>
+  <div class="foot">Proposed production architecture, not the current deployment. PostgreSQL, Temporal, OPA, credentials and cloud integrations remain subject to the delivery gates.</div>
+</section>
+
+<section class="page" aria-labelledby="components-title">
+  <div class="eyebrow">Proposed component interaction diagram | 6 of 7</div>
+  <h2 id="components-title">What each component passes to the next</h2>
+  <p>Follow the arrows. Required analysis shares the same observation set; permission is evaluated against the resolved plan, not the agents' confidence or agreement.</p>
+  <figure>
+    <svg class="diagram" viewBox="0 0 660 660" role="img" aria-labelledby="components-svg-title components-svg-desc">
+      <title id="components-svg-title">Agent handoffs and trusted execution components</title>
+      <desc id="components-svg-desc">A durable coordinator schedules intake, discovery and shared observations. Security, impact and optional specialists analyze those observations in parallel. Their findings join at planning and trusted validation. OPA authorization denies, allows within an approved envelope or requests human review. The executor submits the exact authorized plan, and independent verification reports verified or recovery-needed. Recovery must return through authorization and current-state checks.</desc>
+      <defs>
+        <marker id="component-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#45627a"/></marker>
+      </defs>
+      <rect class="trusted" x="10" y="5" width="640" height="52" rx="7"/>
+      <text class="heading" x="330" y="26">Durable coordinator schedules every step</text>
+      <text x="330" y="46">Records findings, deadlines, approvals and actual outcomes</text>
+      <path class="edge observe" d="M105 57 V88" marker-end="url(#component-arrow)"/>
+      <rect x="15" y="88" width="180" height="57" rx="7"/>
+      <text class="heading" x="105" y="110">Intake agent</text>
+      <text x="105" y="132">Confirmed request</text>
+      <path class="edge" d="M195 116 H240" marker-end="url(#component-arrow)"/>
+      <rect x="240" y="88" width="180" height="57" rx="7"/>
+      <text class="heading" x="330" y="110">Discovery component</text>
+      <text x="330" y="132">Real, scoped observations</text>
+      <path class="edge" d="M420 116 H465" marker-end="url(#component-arrow)"/>
+      <rect x="465" y="88" width="180" height="57" rx="7"/>
+      <text class="heading" x="555" y="110">Shared evidence</text>
+      <text x="555" y="132">Version, source and freshness</text>
+      <path class="edge" d="M555 145 V178 H110 V215" marker-end="url(#component-arrow)"/>
+      <path class="edge" d="M330 178 V215" marker-end="url(#component-arrow)"/>
+      <path class="edge" d="M550 178 V215" marker-end="url(#component-arrow)"/>
+      <text class="label" x="330" y="165">Independent analysis in parallel</text>
+      <rect x="15" y="215" width="190" height="62" rx="7"/>
+      <text class="heading" x="110" y="239">Security specialist</text>
+      <text x="110" y="260">Requirements and gaps</text>
+      <rect x="235" y="215" width="190" height="62" rx="7"/>
+      <text class="heading" x="330" y="239">Impact specialist</text>
+      <text x="330" y="260">Affected users and conflicts</text>
+      <rect x="455" y="215" width="190" height="62" rx="7"/>
+      <text class="heading" x="550" y="239">Optional specialists</text>
+      <text x="550" y="260">Approved cost / location checks</text>
+      <path class="edge" d="M110 277 V307 H550 V277"/>
+      <path class="edge" d="M330 277 V335" marker-end="url(#component-arrow)"/>
+      <text class="label" x="485" y="328">Findings join</text>
+      <rect class="trusted" x="205" y="335" width="250" height="68" rx="7"/>
+      <text class="heading" x="330" y="357">Planning agent + trusted code</text>
+      <text x="330" y="378">Compile and validate exact plan</text>
+      <text x="330" y="396">Define recovery limits</text>
+      <path class="edge" d="M330 403 V435" marker-end="url(#component-arrow)"/>
+      <rect class="human" x="205" y="435" width="250" height="60" rx="7"/>
+      <text class="heading" x="330" y="456">Policy authorization (OPA)</text>
+      <text x="330" y="476">Allow, review or deny</text>
+      <text class="label" x="330" y="490">Bound to this plan and target</text>
+      <rect class="blocked" x="15" y="435" width="155" height="60" rx="7"/>
+      <text class="heading" x="92" y="459">Denied: stop</text>
+      <text x="92" y="481">Explain the reason</text>
+      <path class="edge" d="M205 465 H170" marker-end="url(#component-arrow)"/>
+      <rect class="human" x="485" y="435" width="160" height="60" rx="7"/>
+      <text class="heading" x="565" y="459">Human reviewer</text>
+      <text x="565" y="481">Only when required</text>
+      <path class="edge" d="M455 465 H485" marker-start="url(#component-arrow)" marker-end="url(#component-arrow)"/>
+      <path class="edge" d="M330 495 V535" marker-end="url(#component-arrow)"/>
+      <text class="label" x="430" y="519">Currently authorized only</text>
+      <rect class="writer" x="205" y="535" width="250" height="54" rx="7"/>
+      <text class="heading" x="330" y="556">Scoped executor</text>
+      <text x="330" y="577">Recheck, submit, record receipt</text>
+      <path class="edge" d="M455 562 H485" marker-end="url(#component-arrow)"/>
+      <rect x="485" y="535" width="160" height="54" rx="7"/>
+      <text class="heading" x="565" y="556">Verifier</text>
+      <text x="565" y="577">Real state and traffic</text>
+      <path class="edge" d="M565 589 V619" marker-end="url(#component-arrow)"/>
+      <rect class="trusted" x="205" y="619" width="440" height="36" rx="7"/>
+      <text class="heading" x="425" y="642">Report: verified / recovery needed / unknown</text>
+      <path class="edge observe" d="M205 637 H183 V516 H285 V495" marker-end="url(#component-arrow)"/>
+      <text class="label" x="93" y="568">Recovery returns</text>
+      <text class="label" x="93" y="587">through authorization</text>
+      <text class="label" x="93" y="606">and current-state checks</text>
+    </svg>
+    <figcaption>Arrows carry validated requests, observations, findings, permissions, receipts or verification results. Dashed paths show coordination or recovery, not unrestricted agent-to-agent commands.</figcaption>
+  </figure>
+  <div class="foot">Missing mandatory evidence blocks the affected step. Recovery is separately authorized; human approval cannot override denial. These logical components need not be separate services.</div>
+</section>
+
+<section class="page" aria-labelledby="delivery-title">
+  <div class="eyebrow">Delivery gates and decisions | 7 of 7</div>
+  <h2 id="delivery-title">Earn production authority with evidence</h2>
+  <p>Use the current roadmap, not historical completion percentages. Its 18 requirements and 34 planned tasks describe coverage of work, not how much production capability is complete.</p>
+  <table aria-label="Proposed gated delivery">
+    <tr><th>Gate</th><th>Evidence required to advance</th></tr>
+    <tr><td><b>1. Approve foundations</b></td><td>Named owners, selected cloud setup, identity and policy design, corporate artifacts, hosting, cost plan and recovery limits. Prove restart and bounded waits without cloud writes.</td></tr>
+    <tr><td><b>2. Real read-only pilot</b></td><td>Authoritative inventory, deterministic plans and visible evidence gaps. No infrastructure changes.</td></tr>
+    <tr><td><b>3. Controlled deployment</b></td><td>Real version-controlled change requests, enforceable pre-apply checks, recorded receipts, observed deployment and independent traffic tests.</td></tr>
+    <tr><td><b>4. Limited production</b></td><td>Selected-setup certification, failure and restore drills, monitoring, support ownership and measured acceptance criteria.</td></tr>
+    <tr><td><b>5. Expand separately</b></td><td>Qualify another cloud setup. Direct API changes and automated traffic shifting need their own permission and recovery gates; neither is required for the first read-only pilot.</td></tr>
   </table>
 
-  <h2 style="margin-top:20px">Where an agent framework such as Strands fits</h2>
-  <p>An open-source agent SDK (for example, Strands Agents) could serve as the <b>runtime inside each agent node</b>: model-agnostic access (Bedrock, Anthropic, OpenAI, Gemini), structured output, tool and MCP connectivity, tracing and evaluation. The orchestration, approval, audit and rollout logic remains in-house, as it is the core control and differentiator. See <i>docs/strands-agents-evaluation.md</i>.</p>
-
-  <h2 style="margin-top:20px">Decisions requested</h2>
+  <h3>Leadership decisions before delivery</h3>
   <ul>
-    <li>Endorse v1 (read-only advisory) as the first production milestone.</li>
-    <li>Nominate Security, FinOps and Platform owners for the first on-the-fly specialist agents.</li>
-    <li>Approve a time-boxed pilot of an agent SDK runtime behind the existing orchestrator.</li>
+    <li><b>Sponsor and scope:</b> Select the first application/cloud setup; name platform, security, network/certificate and recovery owners.</li>
+    <li><b>Authority:</b> Approve who may set automation envelopes, review changes and authorize recovery; agree outage behavior.</li>
+    <li><b>Investment:</b> Require a costed, time-boxed pilot and corporate approval of software, hosting, data handling and support.</li>
   </ul>
-  <div class="foot">Source: docs/architecture-spec.md and the ingress-control-plane implementation. Figures are design targets from the architecture spec, not measured results.</div>
-</div>
+
+  <h3>Measure value before expanding</h3>
+  <p>Compare request-to-verified-service time and manual effort with today's process. Track successful changes, rejected unauthorized actions, unknown outcomes, user-visible recovery time, operating cost and operator comprehension. Agree numerical targets before the pilot; report observations rather than simulation values.</p>
+
+  <h3>Document basis and recommendation precedence</h3>
+  <p class="small">Current direction:
+    <a href="multi-cloud-ingress/core-architecture.md">Operating core</a>,
+    <a href="multi-cloud-ingress/plan.md">roadmap</a>,
+    <a href="multi-cloud-ingress/extension-contract.md">extension contract</a> and
+    <a href="multi-cloud-ingress/research.md">primary-source evidence</a>.
+    <a href="multi-cloud-ingress/checkpoints/spec-to-plan.yaml">Requirement mapping</a> and
+    <a href="multi-cloud-ingress/checkpoints/plan-to-tasks.yaml">task mapping</a> show planning traceability only.</p>
+  <p class="small">Implementation context:
+    <a href="strands-agents-integration.md">Strands integration</a> and
+    <a href="dag-execution-bus-architecture.md">agent handoffs</a>.
+    Earlier <a href="strands-agents-evaluation.md">Strands evaluation</a>,
+    <a href="architecture-spec.md">architecture</a>,
+    <a href="implementation-plan.md">implementation plan</a> and
+    <a href="implementation-progress.md">progress tracker</a> contain historical proposals or prototype claims.
+    Their Python/Google ADK direction, readiness percentages and speed/recovery targets are not the current production recommendation or measured evidence.</p>
+  <div class="foot">Repository review: November 24, 2026, baseline 8a54cb7. No cloud deployment, production certification or new performance benchmark was performed for this brief. Source links point to that repository baseline; the PDF is self-contained for leadership.</div>
+</section>
 
 </body>
 </html>
