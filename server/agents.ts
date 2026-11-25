@@ -123,6 +123,31 @@ export function normalizePipelineConfig(
   };
 }
 
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((item) => typeof item === "string")
+  );
+}
+
+function getComputedPlanDigest(changePlan: ChangePlan | null): string | null {
+  if (
+    !changePlan ||
+    typeof changePlan.targetStateEtag !== "string" ||
+    !isStringRecord(changePlan.artifacts) ||
+    !isStringRecord(changePlan.rollbackPlan?.precomputedArtifacts)
+  ) {
+    return null;
+  }
+  return computePlanDigest(
+    changePlan.targetStateEtag,
+    changePlan.artifacts,
+    changePlan.rollbackPlan.precomputedArtifacts
+  );
+}
+
 const NaturalLanguageIntakeOutputSchema = z.object({
   appName: z.string(),
   environment: z.enum(["dev", "staging", "prod"]),
@@ -1493,6 +1518,34 @@ export function processApprovalAndExecute(params: {
   }
 
   const now = new Date().toISOString();
+  if (params.decision === "APPROVE") {
+    const computedPlanDigest = getComputedPlanDigest(workflow.changePlan);
+    if (computedPlanDigest !== workflow.changePlan.planDigestSha256) {
+      const errorMessage = "Plan digest verification failed.";
+      workflow.status = "FAILED";
+      workflow.errorMessage = errorMessage;
+      workflow.updatedAt = now;
+      const hitlTrace = workflow.agentTraces.find((t) => t.phase === "HITL_GATE");
+      if (hitlTrace) {
+        hitlTrace.status = "ABORTED";
+        hitlTrace.summary = errorMessage;
+        hitlTrace.completedAt = now;
+      }
+      store.addAuditEvent({
+        workflowId: workflow.workflowId,
+        actorId: "ExecutionAgent",
+        actorType: "AGENT",
+        eventType: "SIGNATURE_INVALID",
+        payload: {
+          expectedPlanDigest: workflow.changePlan.planDigestSha256,
+          computedPlanDigest,
+        },
+      });
+      params.onEvent("FAILED", workflow);
+      return { httpStatus: 403, workflow, error: errorMessage };
+    }
+  }
+
   const signature = signApprovalPayload({
     workflowId: workflow.workflowId,
     planId: workflow.changePlan.planId,
@@ -1862,6 +1915,7 @@ export function promoteCanaryStep(params: {
     throw new Error("Workflow is not in an active progressive canary state.");
   }
 
+  const activeIdx = requireCurrentCanaryRoute(workflow, params.onEvent);
   const now = new Date().toISOString();
   const req = workflow.ingressRequest;
 
@@ -1880,13 +1934,8 @@ export function promoteCanaryStep(params: {
   );
   const nextWeight = workflow.canaryState.steps[nextStageIdx] ?? 100;
 
-  const activeIdx = state.routes.findIndex(
-    (r) => r.hostname === req.hostname && r.pathPrefix === req.pathPrefix
-  );
-  if (activeIdx !== -1) {
-    state.routes[activeIdx].canaryWeight = nextWeight;
-    state.routes[activeIdx].updatedAt = now;
-  }
+  state.routes[activeIdx].canaryWeight = nextWeight;
+  state.routes[activeIdx].updatedAt = now;
 
   workflow.canaryState = {
     ...workflow.canaryState,
@@ -1939,6 +1988,106 @@ export function promoteCanaryStep(params: {
   return workflow;
 }
 
+export class WorkflowStateConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkflowStateConflictError";
+  }
+}
+
+export class WorkflowApprovalIntegrityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkflowApprovalIntegrityError";
+  }
+}
+
+function requireCurrentCanaryRoute(
+  workflow: WorkflowRun,
+  onEvent: (eventType: string, workflow: WorkflowRun) => void
+): number {
+  const state = store.getState();
+  const liveEtag = store.getLiveEtag();
+  const expectedStateEtag = workflow.currentStateEtag;
+  const plan = workflow.changePlan;
+  const approval = workflow.approvalDecision;
+  const computedPlanDigest = getComputedPlanDigest(plan);
+  const approvalSignatureValid = approval ? verifyApprovalSignature(approval) : false;
+  const approvalValid =
+    plan !== null &&
+    approval !== null &&
+    approval.decision === "APPROVE" &&
+    approval.workflowId === workflow.workflowId &&
+    approval.planId === plan.planId &&
+    approval.approvedStateEtag === plan.targetStateEtag &&
+    approval.approvedPlanDigest === plan.planDigestSha256 &&
+    computedPlanDigest === plan.planDigestSha256 &&
+    approvalSignatureValid;
+  if (!approvalValid) {
+    const now = new Date().toISOString();
+    workflow.status = "FAILED";
+    workflow.errorMessage = "Approval or plan integrity verification failed.";
+    workflow.updatedAt = now;
+    workflow.agentTraces.push({
+      agentName: "ExecutionAgent",
+      phase: "EXECUTION",
+      accessMode: "SCOPED_WRITE",
+      status: "ABORTED",
+      summary: workflow.errorMessage,
+      completedAt: now,
+    });
+    store.addAuditEvent({
+      workflowId: workflow.workflowId,
+      actorId: "ExecutionAgent",
+      actorType: "AGENT",
+      eventType: "SIGNATURE_INVALID",
+      payload: {
+        expectedPlanDigest: plan?.planDigestSha256 ?? null,
+        computedPlanDigest,
+        approvalSignatureValid,
+      },
+    });
+    onEvent("FAILED", workflow);
+    throw new WorkflowApprovalIntegrityError(workflow.errorMessage);
+  }
+
+  const routeIndex = state.routes.findIndex(
+    (route) =>
+      route.hostname === workflow.ingressRequest.hostname &&
+      route.pathPrefix === workflow.ingressRequest.pathPrefix &&
+      route.revisionNote === `applied-${workflow.workflowId.slice(0, 8)}`
+  );
+  if (liveEtag !== expectedStateEtag || routeIndex === -1) {
+    const now = new Date().toISOString();
+    workflow.status = "DRIFT_ABORTED";
+    workflow.currentStateEtag = liveEtag;
+    workflow.errorMessage = "Canary state drift detected; route mutation was aborted.";
+    workflow.updatedAt = now;
+    workflow.agentTraces.push({
+      agentName: "ExecutionAgent",
+      phase: "EXECUTION",
+      accessMode: "SCOPED_WRITE",
+      status: "ABORTED",
+      summary: workflow.errorMessage,
+      completedAt: now,
+    });
+    store.addAuditEvent({
+      workflowId: workflow.workflowId,
+      actorId: "ExecutionAgent",
+      actorType: "AGENT",
+      eventType: "DRIFT_DETECTED",
+      payload: {
+        expectedStateEtag,
+        liveStateEtag: liveEtag,
+        routeOwned: routeIndex !== -1,
+      },
+    });
+    onEvent("DRIFT_ABORTED", workflow);
+    throw new WorkflowStateConflictError(workflow.errorMessage);
+  }
+  return routeIndex;
+}
+
 export function executeManualRollback(params: {
   workflowId: string;
   actorId: string;
@@ -1951,21 +2100,25 @@ export function executeManualRollback(params: {
     throw new Error("Workflow or sealed RollbackPlan not found.");
   }
 
+  if (
+    workflow.executionMode !== "direct_canary_v3" ||
+    workflow.approvalDecision?.decision !== "APPROVE" ||
+    (workflow.status !== "EXECUTING" && workflow.status !== "COMPLETED")
+  ) {
+    throw new WorkflowStateConflictError("Workflow is not eligible for rollback.");
+  }
+
+  const routeIdx = requireCurrentCanaryRoute(workflow, params.onEvent);
+
   const now = new Date().toISOString();
-  const req = workflow.ingressRequest;
 
   // Deterministic rollback: restore weight or remove canary route
-  const routeIdx = state.routes.findIndex(
-    (r) => r.hostname === req.hostname && r.pathPrefix === req.pathPrefix
-  );
-  if (routeIdx !== -1) {
-    if (workflow.changePlan.rollbackPlan.strategy === "canary_weight_zero") {
-      state.routes[routeIdx].canaryWeight = 100;
-      state.routes[routeIdx].revisionNote = `rollback-${workflow.changePlan.rollbackPlan.rollbackId.slice(0, 8)}`;
-      state.routes[routeIdx].updatedAt = now;
-    } else {
-      state.routes.splice(routeIdx, 1);
-    }
+  if (workflow.changePlan.rollbackPlan.strategy === "canary_weight_zero") {
+    state.routes[routeIdx].canaryWeight = 100;
+    state.routes[routeIdx].revisionNote = `rollback-${workflow.changePlan.rollbackPlan.rollbackId.slice(0, 8)}`;
+    state.routes[routeIdx].updatedAt = now;
+  } else {
+    state.routes.splice(routeIdx, 1);
   }
 
   workflow.status = "ROLLED_BACK";

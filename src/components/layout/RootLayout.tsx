@@ -31,7 +31,7 @@ export function RootLayout({ children }: { children?: ReactNode }) {
 
   const { data: wfData } = useQuery({
     queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryFn: () => fetchWorkflows(),
   });
 
   const pendingApprovalsCount =

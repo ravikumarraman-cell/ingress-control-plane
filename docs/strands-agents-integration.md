@@ -117,7 +117,7 @@ Implemented in `server/strands/guardrailsAndSteering.ts` using Strands' `Interve
 - **`IngressSteeringHandler`** (extends `SteeringHandler` with `ToolLedgerProvider({ maxEntries: 50 })`):
   - `beforeToolCall`: Appends Four-Eyes RBAC and TOCTOU ETag steering context when inspecting `prod` routes.
   - `afterModelCall`: Steers away from `0.0.0.0/0` firewall openings, Four-Eyes RBAC bypasses, or permanent WAF disables.
-- **`createHitlApprovalIntervention()`**: Instantiates Strands' vended `HumanInTheLoop` intervention (`@strands-agents/sdk/vended-interventions/hitl`) allowing read-only tools, `strands_structured_output`, and `synthetic_probe_http` while interrupting any unlisted mutating tool.
+- **`createHitlApprovalIntervention()`**: Provides a Strands vended `HumanInTheLoop` intervention (`@strands-agents/sdk/vended-interventions/hitl`) for future agents that own approved write tools. It is intentionally not attached to the current read-only core graph; its approval boundary is the application workflow gate.
 
 ### 2.6 Structured Output
 - **Static Zod Schemas**: `NaturalLanguageIntakeOutputSchema` (`server/agents.ts`) and `TroubleshootOutputSchema` (`server/adoptionAgents.ts`) passed via `structuredOutputSchema`.
@@ -139,6 +139,36 @@ Implemented in `server/strands/sessionMemoryTelemetry.ts`:
   - `runControlPlaneEvals()` (`POST /api/v1/strands/evals/run`) runs 4 live Strands assertions (`STRANDS-EVAL-01` secret guardrail, `STRANDS-EVAL-02` read-only tool + Zod structured output + session snapshot, `STRANDS-EVAL-03` DAG cycle rejection, `STRANDS-EVAL-04` ETag determinism + TLS 1.3 + SHA-256 audit chain).
   - Verified by `server/__tests__/strandsIntegration.test.ts` alongside `agentDag.test.ts` and `adoptionAgents.test.ts`.
 
+### 2.9 Reuse Boundaries
+
+Prefer the installed Strands primitives for agent lifecycle and coordination:
+`Agent`/`createHarness`, `Graph` for the fixed core pipeline, `tool()` with Zod
+schemas, `structuredOutputSchema`, model routing, interventions, session/memory
+managers, retry strategies, and telemetry. Do not introduce a separate agent base
+class or hand-written model/tool loop.
+
+Keep application code for deterministic control-plane contracts Strands should not
+decide: dynamic blueprint validation and stage ordering, upstream output
+interpolation, veto/failure propagation, audit linkage, approval signatures,
+ETag drift checks, and workflow HTTP state. The dynamic runner's wave scheduling
+is currently coupled to these semantics; replace it with a Strands graph only if
+the replacement preserves per-agent inputs/outputs, dependency failures, vetoes,
+and audit records under tests.
+
+The core analysis graph is strictly read-only, so it uses
+`ReadOnlyIsolationIntervention` rather than the vended mutating-tool HITL
+intervention. Human approval remains the workflow-level approval gate; a future
+execution agent can use Strands HITL when it actually owns approved write tools.
+
+Memory injection remains disabled for troubleshooting because the shared memory
+store is not yet scoped by tenant/workflow authorization. Use filtered Strands
+memory retrieval only after that isolation boundary is defined; do not enable
+global automatic injection.
+
+The separate `backend/` foundation is not imported by the active Express runtime.
+Do not extend it as a parallel orchestration stack; decide separately whether to
+integrate or retire those standalone abstractions.
+
 ---
 
 ## 3. Summary Matrix: Used vs. Partial vs. Available
@@ -149,7 +179,7 @@ Implemented in `server/strands/sessionMemoryTelemetry.ts`:
 | **Multi-Agent** | `Graph`, `MultiAgentResult` (core pipeline fan-out/fan-in) | Core `Graph` nodes use `DeterministicControlPlaneModel` directly rather than `createControlPlaneModelRouter`. | `Swarm`, `makeSubagent`, `@strands-agents/sdk/vended-tools/swarm`, `vended-tools/graph`, `vended-tools/subagent` |
 | **Models & Routing** | `ModelRouter`, `FallbackStrategy`, `RoutingCandidate`, `GoogleModel`, `BedrockModel`, `AnthropicModel`, `OpenAIModel`, custom `Model` (`DeterministicControlPlaneModel`) | — | `ClassifierStrategy`, `VercelModel` (`@strands-agents/sdk/models/vercel`), `DecisionModel`, `DecisionsAPIDecisionModel`, `TypeSafeDecisionModel` |
 | **Tools & MCP** | 6 custom `tool()` definitions, `httpRequest` (`vended-tools/http-request`), `getConfiguredMcpServers()` on `createHarness` | `syntheticProbeHttpTool` is only attached to `TroubleshootingAgent`, not `ExecutionAgent` canary verification; `McpClient` is not directly mounted on `Agent` nodes. | `vended-tools/mcp-router`, `web-fetch`, `read`, `write`, `edit`, `bash`/`shell`, `stop`, `handoff-to-user`, `a2a-client` |
-| **Guardrails & HITL** | Custom `InterventionHandler`s (`SecretAndTlsGuardrailIntervention`, `ReadOnlyIsolationIntervention`), `SteeringHandler` + `ToolLedgerProvider`, `HumanInTheLoop` | `HumanInTheLoop` is attached to `corePipelineGraph`, but workflow pause/resume (`AWAITING_APPROVAL` -> `/decision`) is still controlled by `server/agents.ts` state transitions rather than Strands `InterruptEvent` resume. | `InterruptEvent` / `InterruptResponseContent` checkpoint resume, Cedar policy intervention (`@strands-agents/sdk/vended-interventions/cedar`), `dogwood` |
+| **Guardrails & HITL** | Custom `InterventionHandler`s (`SecretAndTlsGuardrailIntervention`, `ReadOnlyIsolationIntervention`), `SteeringHandler` + `ToolLedgerProvider`; exported `HumanInTheLoop` factory for future write agents | Workflow pause/resume (`AWAITING_APPROVAL` -> `/decision`) is controlled by `server/agents.ts`; native Strands interrupt/resume is not wired. | `InterruptEvent` / `InterruptResponseContent` checkpoint resume, Cedar policy intervention (`@strands-agents/sdk/vended-interventions/cedar`), `dogwood` |
 | **Sessions & Memory** | `SessionManager` (`LocalFileStorage` / `InMemoryStorage`), `MemoryManager` + `FileMemoryStore` | `MemoryManager` sets `injection: false` and only calls `.add()`, not `.search()` during troubleshooting; `SessionManager` is not wired on `createHarness` calls (`session: false`). | `injection: true` automatic memory recall, `SlidingWindowConversationManager`, `SummarizingConversationManager`, `S3Storage` (`session/s3-storage`), `BedrockKnowledgeBase` (`vended-memory-stores/bedrock-knowledge-base`), BM25/QMD/Bedrock embedding search (`storage/search/*`) |
 | **Context & Plugins** | — | Disabled in `createHarness` (`skills: false`, `builtinPlugins: []`, `contextManager: false`). | `vended-plugins/skills`, `vended-plugins/context-offloader`, `vended-plugins/context-injector`, `vended-plugins/goal`, `vended-plugins/todos` |
 | **Streaming & A2A** | Internal `Model.stream()` yielding `ModelStreamEvent` | Backend `agent.invoke()` awaits completion; UI updates via coarse `workflow_update` SSE events only. | `agent.stream()` (`ModelStreamUpdateEvent`, `ToolStreamUpdateEvent`, `ContentBlockEvent`) streamed to browser SSE; `@strands-agents/sdk/a2a` & `a2a/express` |

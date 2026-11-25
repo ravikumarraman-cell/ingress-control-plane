@@ -16,6 +16,7 @@ import {
   OnboardingAssessmentInputSchema,
   READ_ONLY_TOOL_CATALOG,
   type WorkflowRun,
+  WorkflowStatusSchema,
 } from "./src/shared/contracts.ts";
 import {
   assignAgentToWorkflow,
@@ -28,6 +29,8 @@ import {
   reviseWorkflowWithAgentFeedback,
   runValidationGates,
   updateRolloutCompanionMilestone,
+  WorkflowApprovalIntegrityError,
+  WorkflowStateConflictError,
 } from "./server/agents.ts";
 import {
   assessOnboardingAndPreflight,
@@ -47,6 +50,7 @@ dotenv.config();
 // SSE Client Registry + Last-Event-ID Replay Buffer (V1-SSE-01)
 type SseClient = { id: string; res: Response };
 type BufferedSseEvent = { id: number; payload: string };
+type SseResyncReason = "invalid_cursor" | "cursor_expired" | "cursor_ahead";
 const sseClients = new Set<SseClient>();
 const sseHistory: BufferedSseEvent[] = [];
 let sseEventCounter = 0;
@@ -93,6 +97,12 @@ function getOperatorFromHeaders(req: Request): {
   return { operatorId, roles };
 }
 
+function getWorkflowMutationErrorStatus(error: unknown): number {
+  if (error instanceof WorkflowApprovalIntegrityError) return 403;
+  if (error instanceof WorkflowStateConflictError) return 409;
+  return 400;
+}
+
 // SSE Event Stream
 app.get("/api/v1/workflows/events", (req: Request, res: Response) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -108,13 +118,54 @@ app.get("/api/v1/workflows/events", (req: Request, res: Response) => {
   );
 
   const lastIdRaw = req.header("last-event-id");
-  const lastId = lastIdRaw ? Number.parseInt(lastIdRaw, 10) : NaN;
-  if (Number.isFinite(lastId)) {
-    for (const ev of sseHistory) {
-      if (ev.id > lastId) {
-        res.write(`id: ${ev.id}\n`);
-        res.write(`event: workflow_update\n`);
-        res.write(`data: ${ev.payload}\n\n`);
+  if (lastIdRaw !== undefined) {
+    const trimmedLastId = lastIdRaw.trim();
+    let lastId: number | undefined;
+    let resyncReason: SseResyncReason | undefined;
+
+    if (!/^(0|[1-9]\d*)$/.test(trimmedLastId)) {
+      resyncReason = "invalid_cursor";
+    } else {
+      const parsedLastId = Number(trimmedLastId);
+      if (Number.isSafeInteger(parsedLastId)) {
+        lastId = parsedLastId;
+      } else {
+        resyncReason = "invalid_cursor";
+      }
+    }
+
+    const oldestAvailableEventId = sseHistory[0]?.id;
+    const latestAvailableEventId = sseHistory[sseHistory.length - 1]?.id ?? sseEventCounter;
+    if (!resyncReason && lastId !== undefined && lastId > latestAvailableEventId) {
+      resyncReason = "cursor_ahead";
+    } else if (
+      !resyncReason &&
+      lastId !== undefined &&
+      oldestAvailableEventId !== undefined &&
+      lastId < oldestAvailableEventId - 1
+    ) {
+      resyncReason = "cursor_expired";
+    }
+
+    if (resyncReason) {
+      res.write(`id: ${latestAvailableEventId}\n`);
+      res.write(`event: resync_required\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          reason: resyncReason,
+          lastEventId: lastId ?? null,
+          oldestAvailableEventId: oldestAvailableEventId ?? null,
+          latestEventId: latestAvailableEventId,
+          liveStateEtag: store.getLiveEtag(),
+        })}\n\n`
+      );
+    } else if (lastId !== undefined) {
+      for (const ev of sseHistory) {
+        if (ev.id > lastId) {
+          res.write(`id: ${ev.id}\n`);
+          res.write(`event: workflow_update\n`);
+          res.write(`data: ${ev.payload}\n\n`);
+        }
       }
     }
   }
@@ -123,7 +174,7 @@ app.get("/api/v1/workflows/events", (req: Request, res: Response) => {
     res.write(`: heartbeat\n\n`);
   }, 25_000);
 
-  req.on("close", () => {
+  res.on("close", () => {
     clearInterval(heartbeat);
     sseClients.delete(client);
   });
@@ -307,11 +358,23 @@ app.get("/api/v1/telemetry/traffic", (req: Request, res: Response) => {
 });
 
 // List Workflows
-app.get("/api/v1/workflows", (_req: Request, res: Response) => {
+app.get("/api/v1/workflows", (req: Request, res: Response) => {
+  let status: WorkflowRun["status"] | undefined;
+  if (req.query.status !== undefined) {
+    const parsedStatus = WorkflowStatusSchema.safeParse(req.query.status);
+    if (!parsedStatus.success) {
+      res.status(400).json({ error: "Invalid workflow status filter." });
+      return;
+    }
+    status = parsedStatus.data;
+  }
+
   const state = store.getState();
   res.json({
     liveStateEtag: store.getLiveEtag(),
-    workflows: state.workflows,
+    workflows: status
+      ? state.workflows.filter((workflow) => workflow.status === status)
+      : state.workflows,
   });
 });
 
@@ -503,14 +566,24 @@ app.post("/api/v1/workflows/:workflowId/revise", async (req: Request<{ workflowI
 });
 
 // Promote Progressive Canary Stage (v3)
+const CanaryPromotionBodySchema = z.object({
+  simulateProbeFailure: z.boolean().optional().default(false),
+});
+
 app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
-  const simulateFailure = Boolean(req.body?.simulateProbeFailure);
+  const parsed = CanaryPromotionBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({
+      error: parsed.error.issues.map((issue) => issue.message).join("; "),
+    });
+    return;
+  }
   try {
     const updated = promoteCanaryStep({
       workflowId: req.params.workflowId,
       actorId: operatorId,
-      simulateProbeFailure: simulateFailure,
+      simulateProbeFailure: parsed.data.simulateProbeFailure,
       onEvent: broadcastWorkflowEvent,
     });
     res.json({
@@ -519,16 +592,27 @@ app.post("/api/v1/workflows/:workflowId/canary/promote", (req: Request<{ workflo
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to promote canary.";
-    res.status(400).json({ error: message });
+    res.status(getWorkflowMutationErrorStatus(err)).json({ error: message });
   }
 });
 
 // Manual Instant Deterministic Rollback (v3)
+const RollbackBodySchema = z.object({
+  reason: z.string().max(1000, "Rollback reason must be 1000 characters or fewer.").optional(),
+});
+
 app.post("/api/v1/workflows/:workflowId/rollback", (req: Request<{ workflowId: string }>, res: Response) => {
   const { operatorId } = getOperatorFromHeaders(req);
+  const parsed = RollbackBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(422).json({
+      error: parsed.error.issues.map((issue) => issue.message).join("; "),
+    });
+    return;
+  }
   const reason =
-    typeof req.body?.reason === "string" && req.body.reason.trim().length > 0
-      ? req.body.reason.trim()
+    parsed.data.reason && parsed.data.reason.trim().length > 0
+      ? parsed.data.reason.trim()
       : "Operator triggered instant deterministic rollback.";
   try {
     const updated = executeManualRollback({
@@ -543,7 +627,7 @@ app.post("/api/v1/workflows/:workflowId/rollback", (req: Request<{ workflowId: s
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to trigger rollback.";
-    res.status(400).json({ error: message });
+    res.status(getWorkflowMutationErrorStatus(err)).json({ error: message });
   }
 });
 
@@ -586,12 +670,54 @@ app.post("/api/v1/workflows/:workflowId/decision", (req: Request<{ workflowId: s
 });
 
 // Audit Log & Cryptographic Chain Verification
-app.get("/api/v1/audit-log", (_req: Request, res: Response) => {
+const AuditLogQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+  actorType: z.enum(["HUMAN", "AGENT", "SYSTEM"]).optional(),
+  search: z.string().max(200).optional(),
+});
+
+app.get("/api/v1/audit-log", (req: Request, res: Response) => {
+  const parsedQuery = AuditLogQuerySchema.safeParse(req.query);
+  if (!parsedQuery.success) {
+    res.status(400).json({ error: "Invalid audit log query parameters." });
+    return;
+  }
+
   const state = store.getState();
   const verification = verifyAuditChain(state.auditEvents);
+  const events = state.auditEvents.slice().reverse();
+  const { limit, offset, actorType, search } = parsedQuery.data;
+  const searchTerm = search?.trim().toLowerCase();
+  const filteredEvents = events.filter((event) => {
+    if (actorType !== undefined && event.actorType !== actorType) return false;
+    if (!searchTerm) return true;
+    return (
+      event.eventType.toLowerCase().includes(searchTerm) ||
+      event.actorId.toLowerCase().includes(searchTerm) ||
+      event.workflowId.toLowerCase().includes(searchTerm) ||
+      JSON.stringify(event.payload).toLowerCase().includes(searchTerm)
+    );
+  });
+  const hasPagination = limit !== undefined || offset !== undefined;
+
+  if (!hasPagination) {
+    res.json({ events: filteredEvents, verification });
+    return;
+  }
+
+  const pageSize = limit ?? 100;
+  const pageOffset = offset ?? 0;
   res.json({
-    events: state.auditEvents.slice().reverse(),
+    events: filteredEvents.slice(pageOffset, pageOffset + pageSize),
     verification,
+    pagination: {
+      limit: pageSize,
+      offset: pageOffset,
+      total: filteredEvents.length,
+      totalEvents: events.length,
+      hasMore: filteredEvents.length - pageOffset > pageSize,
+    },
   });
 });
 

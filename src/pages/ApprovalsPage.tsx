@@ -6,7 +6,7 @@ import { fetchRoutes, fetchWorkflows } from "../lib/api";
 export function ApprovalsPage() {
   const wfQuery = useQuery({
     queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryFn: () => fetchWorkflows(),
   });
 
   const routesQuery = useQuery({

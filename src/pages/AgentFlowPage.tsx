@@ -29,7 +29,7 @@ export function AgentFlowPage() {
 
   const workflowsQuery = useQuery({
     queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryFn: () => fetchWorkflows(),
   });
 
   const policiesQuery = useQuery({

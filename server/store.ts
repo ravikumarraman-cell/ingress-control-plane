@@ -228,6 +228,116 @@ export interface PersistedState {
   driftCounter: number;
 }
 
+export class BinaryDiffInputError extends TypeError {
+  constructor(input: "before" | "after") {
+    super(`Cannot compute a text diff: ${input} content contains a NUL byte.`);
+    this.name = "BinaryDiffInputError";
+  }
+}
+
+type DiffOperation =
+  | { kind: "equal"; line: string }
+  | { kind: "add"; line: string }
+  | { kind: "remove"; line: string };
+
+function computeLineDiff(beforeLines: string[], afterLines: string[]): DiffOperation[] {
+  const beforeLength = beforeLines.length;
+  const afterLength = afterLines.length;
+  const maxDistance = beforeLength + afterLength;
+  const maxEditDistance = Math.min(maxDistance, 512);
+  const offset = maxEditDistance + 1;
+  const furthestX = new Int32Array(2 * maxEditDistance + 3);
+  furthestX[offset + 1] = 0;
+  const trace: Int32Array[] = [];
+  let editDistance = -1;
+
+  for (let distance = 0; distance <= maxEditDistance; distance++) {
+    trace.push(furthestX.slice(offset - distance - 1, offset + distance + 2));
+    for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
+      const x =
+        diagonal === -distance ||
+        (diagonal !== distance &&
+          furthestX[offset + diagonal - 1] < furthestX[offset + diagonal + 1])
+          ? furthestX[offset + diagonal + 1]
+          : furthestX[offset + diagonal - 1] + 1;
+      let nextX = x;
+      let nextY = nextX - diagonal;
+
+      while (
+        nextX < beforeLength &&
+        nextY < afterLength &&
+        beforeLines[nextX] === afterLines[nextY]
+      ) {
+        nextX++;
+        nextY++;
+      }
+
+      furthestX[offset + diagonal] = nextX;
+      if (nextX >= beforeLength && nextY >= afterLength) {
+        editDistance = distance;
+        break;
+      }
+    }
+
+    if (editDistance >= 0) break;
+  }
+
+  // Bound trace growth for large rewrites; the fallback remains a valid, if less concise, diff.
+  if (editDistance < 0) {
+    return [
+      ...beforeLines.map((line): DiffOperation => ({ kind: "remove", line })),
+      ...afterLines.map((line): DiffOperation => ({ kind: "add", line })),
+    ];
+  }
+
+  const reversed: DiffOperation[] = [];
+  let x = beforeLength;
+  let y = afterLength;
+
+  for (let distance = editDistance; distance > 0; distance--) {
+    const previous = trace[distance];
+    const previousOffset = distance + 1;
+    const diagonal = x - y;
+    const previousDiagonal =
+      diagonal === -distance ||
+      (diagonal !== distance &&
+        previous[diagonal - 1 + previousOffset] <
+          previous[diagonal + 1 + previousOffset])
+        ? diagonal + 1
+        : diagonal - 1;
+    const previousX = previous[previousDiagonal + previousOffset];
+    const previousY = previousX - previousDiagonal;
+
+    while (x > previousX && y > previousY) {
+      reversed.push({ kind: "equal", line: beforeLines[x - 1] });
+      x--;
+      y--;
+    }
+
+    if (x === previousX) {
+      reversed.push({ kind: "add", line: afterLines[y - 1] });
+      y--;
+    } else {
+      reversed.push({ kind: "remove", line: beforeLines[x - 1] });
+      x--;
+    }
+  }
+
+  while (x > 0 && y > 0) {
+    reversed.push({ kind: "equal", line: beforeLines[x - 1] });
+    x--;
+    y--;
+  }
+  while (x > 0) {
+    reversed.push({ kind: "remove", line: beforeLines[--x] });
+  }
+  while (y > 0) {
+    reversed.push({ kind: "add", line: afterLines[--y] });
+  }
+
+  return reversed.reverse();
+}
+
 export function computeStateEtag(routes: ActiveIngressRoute[]): string {
   const canonical = routes
     .slice()
@@ -303,29 +413,36 @@ export function computeUnifiedDiff(
   beforeText: string,
   afterText: string
 ): DiffHunk {
-  const beforeLines = beforeText ? beforeText.split("\n") : [];
-  const afterLines = afterText.split("\n");
+  if (beforeText.includes("\0")) throw new BinaryDiffInputError("before");
+  if (afterText.includes("\0")) throw new BinaryDiffInputError("after");
+
+  const splitLines = (text: string) => {
+    if (!text) return [];
+    const lines = text.split("\n");
+    if (text.endsWith("\n")) lines.pop();
+    return lines;
+  };
+  const beforeLines = splitLines(beforeText);
+  const afterLines = splitLines(afterText);
   const lines: string[] = [`--- a/${filePath}`, `+++ b/${filePath}`];
   let added = 0;
   let removed = 0;
 
-  const maxLen = Math.max(beforeLines.length, afterLines.length);
-  for (let i = 0; i < maxLen; i++) {
-    const b = beforeLines[i];
-    const a = afterLines[i];
-    if (b === a) {
-      if (a !== undefined) lines.push(` ${a}`);
+  for (const operation of computeLineDiff(beforeLines, afterLines)) {
+    if (operation.kind === "equal") {
+      lines.push(` ${operation.line}`);
+    } else if (operation.kind === "remove") {
+      lines.push(`-${operation.line}`);
+      removed++;
     } else {
-      if (b !== undefined) {
-        lines.push(`-${b}`);
-        removed++;
-      }
-      if (a !== undefined) {
-        lines.push(`+${a}`);
-        added++;
-      }
+      lines.push(`+${operation.line}`);
+      added++;
     }
   }
+
+  const beforeRange = beforeLines.length === 0 ? "0,0" : `1,${beforeLines.length}`;
+  const afterRange = afterLines.length === 0 ? "0,0" : `1,${afterLines.length}`;
+  lines.splice(2, 0, `@@ -${beforeRange} +${afterRange} @@`);
 
   return {
     filePath,

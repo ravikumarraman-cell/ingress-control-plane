@@ -10,6 +10,7 @@ export interface SearchFilterBarProps {
   onResetFilters?: () => void;
   itemLabel?: string;
   className?: string;
+  maxLength?: number;
 }
 
 export function SearchFilterBar({
@@ -22,6 +23,7 @@ export function SearchFilterBar({
   onResetFilters,
   itemLabel = "results",
   className = "",
+  maxLength,
 }: SearchFilterBarProps) {
   return (
     <div className={`flex items-center gap-3 w-full md:w-auto ${className}`}>
@@ -50,6 +52,7 @@ export function SearchFilterBar({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          maxLength={maxLength}
           placeholder={placeholder}
           className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
         />

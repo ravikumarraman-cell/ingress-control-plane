@@ -38,8 +38,9 @@ export function WorkflowsPage() {
   const [driftBanner, setDriftBanner] = useState<string | null>(null);
 
   const workflowsQuery = useQuery({
-    queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryKey:
+      statusFilter === "all" ? ["workflows"] : ["workflows", "status", statusFilter],
+    queryFn: () => fetchWorkflows(statusFilter === "all" ? undefined : statusFilter),
   });
 
   const routesQuery = useQuery({

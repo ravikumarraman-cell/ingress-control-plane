@@ -65,7 +65,7 @@ export function ControlPlaneStatusDashboard({
 
   const workflowsQuery = useQuery({
     queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryFn: () => fetchWorkflows(),
   });
 
   const routesQuery = useQuery({

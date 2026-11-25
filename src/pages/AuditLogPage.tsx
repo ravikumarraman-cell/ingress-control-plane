@@ -1,50 +1,53 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CheckCircle2, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ShieldAlert, ShieldCheck } from "lucide-react";
 import { AuditLogTable } from "../components/AuditLogTable";
 import { PageHeader } from "../components/ui/PageHeader";
 import { SearchFilterBar } from "../components/ui/SearchFilterBar";
 import { SegmentedTabs } from "../components/ui/SegmentedTabs";
-import { fetchAuditLog, verifyAuditLog } from "../lib/api";
+import { fetchAuditLogPage, verifyAuditLog } from "../lib/api";
+
+const AUDIT_PAGE_SIZE = 50;
 
 export function AuditLogPage() {
   const [search, setSearch] = useState("");
   const [actorFilter, setActorFilter] = useState<"ALL" | "HUMAN" | "AGENT" | "SYSTEM">("ALL");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [pageIndex, setPageIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const auditQuery = useQuery({
-    queryKey: ["audit-log"],
-    queryFn: fetchAuditLog,
+    queryKey: ["audit-log", pageIndex, actorFilter, debouncedSearch],
+    queryFn: () =>
+      fetchAuditLogPage({
+        limit: AUDIT_PAGE_SIZE,
+        offset: pageIndex * AUDIT_PAGE_SIZE,
+        actorType: actorFilter === "ALL" ? undefined : actorFilter,
+        search: debouncedSearch || undefined,
+      }),
   });
 
   const verifyMutation = useMutation({
     mutationFn: verifyAuditLog,
   });
 
-  const allEvents = auditQuery.data?.events ?? [];
-
-  const filteredEvents = useMemo(() => {
-    return allEvents.filter((ev) => {
-      if (actorFilter !== "ALL" && ev.actorType !== actorFilter) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        return (
-          ev.eventType.toLowerCase().includes(q) ||
-          ev.actorId.toLowerCase().includes(q) ||
-          ev.workflowId.toLowerCase().includes(q) ||
-          JSON.stringify(ev.payload).toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [allEvents, actorFilter, search]);
-
   const hasActiveFilters = actorFilter !== "ALL" || search.trim().length > 0;
   const clearFilters = () => {
     setActorFilter("ALL");
     setSearch("");
+    setPageIndex(0);
   };
 
   const chainResult = verifyMutation.data ?? auditQuery.data?.verification;
+  const pagination = auditQuery.data?.pagination;
+  const pageStart = pagination && pagination.total > 0 ? pagination.offset + 1 : 0;
+  const pageEnd = pagination
+    ? Math.min(pagination.offset + pagination.limit, pagination.total)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -90,7 +93,10 @@ export function AuditLogPage() {
         <SegmentedTabs
           ariaLabel="Filter audit events by actor type"
           value={actorFilter}
-          onChange={setActorFilter}
+          onChange={(value) => {
+            setActorFilter(value);
+            setPageIndex(0);
+          }}
           items={[
             { id: "ALL", label: "All Actors" },
             { id: "HUMAN", label: "HUMAN" },
@@ -101,10 +107,14 @@ export function AuditLogPage() {
 
         <SearchFilterBar
           value={search}
-          onChange={setSearch}
+          onChange={(value) => {
+            setSearch(value);
+            setPageIndex(0);
+          }}
           placeholder="Search event type, actor, payload..."
-          filteredCount={filteredEvents.length}
-          totalCount={allEvents.length}
+          maxLength={200}
+          filteredCount={pagination?.total ?? 0}
+          totalCount={pagination?.totalEvents ?? 0}
           hasActiveFilters={hasActiveFilters}
           onResetFilters={clearFilters}
           itemLabel="events"
@@ -112,14 +122,51 @@ export function AuditLogPage() {
         />
       </div>
 
+      {auditQuery.isError && (
+        <p role="alert" className="text-sm text-red-700">
+          Failed to load audit events: {auditQuery.error.message}
+        </p>
+      )}
+
       <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
         <AuditLogTable
-          events={filteredEvents}
+          events={auditQuery.data?.events ?? []}
           isLoading={auditQuery.isLoading}
           hasActiveFilters={hasActiveFilters}
           onClearFilters={clearFilters}
         />
       </div>
+
+      <nav
+        aria-label="Audit log pagination"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600"
+      >
+        <span className="tabular-nums">
+          Showing {pageStart}-{pageEnd} of {pagination?.total ?? 0} matching events
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Previous audit log page"
+            disabled={pageIndex === 0 || auditQuery.isFetching}
+            onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Previous
+          </button>
+          <button
+            type="button"
+            aria-label="Next audit log page"
+            disabled={!pagination?.hasMore || auditQuery.isFetching}
+            onClick={() => setPageIndex((current) => current + 1)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

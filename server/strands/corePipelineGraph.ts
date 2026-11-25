@@ -14,8 +14,8 @@ import type {
   WorkflowPipelineConfig,
 } from "../../src/shared/contracts.ts";
 import {
-  createHitlApprovalIntervention,
   IngressSteeringHandler,
+  ReadOnlyIsolationIntervention,
   SecretAndTlsGuardrailIntervention,
 } from "./guardrailsAndSteering.ts";
 import { DeterministicControlPlaneModel } from "./modelProvider.ts";
@@ -70,10 +70,13 @@ export async function executeCorePipelineWithStrandsGraph(
   const dryRunBaselinePass = input.violations.length === 0;
   const sessionManager = createWorkflowSessionManager(input.sessionId);
 
-  const sharedInterventions = () => [
+  const sharedInterventions = (agentName: string, tools: readonly Tool[]) => [
     new SecretAndTlsGuardrailIntervention(),
+    new ReadOnlyIsolationIntervention({
+      agentName,
+      allowedTools: tools.map((tool) => tool.name),
+    }),
     new IngressSteeringHandler(),
-    createHitlApprovalIntervention(),
   ];
 
   const makeCoreNodeAgent = (cfg: {
@@ -93,7 +96,7 @@ export async function executeCorePipelineWithStrandsGraph(
       }),
       systemPrompt: cfg.systemPrompt,
       tools: cfg.tools ?? [],
-      interventions: sharedInterventions(),
+      interventions: sharedInterventions(cfg.name, cfg.tools ?? []),
       retryStrategy: null,
     });
     agent.addHook(AgentResultEvent, (ev) => {

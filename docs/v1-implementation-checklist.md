@@ -1,8 +1,8 @@
 # Phase v1 Implementation Checklist
 
 **Phase:** v1 — Read-Only Advisory + TanStack Telemetry UI  
-**Last Updated:** 2026-11-24  
-**Next Review:** After v1.1 integration tests complete  
+**Last Updated:** 2026-11-24
+**Next Review:** After v1.4 replay-resync browser validation and live-adapter decisions
 
 ---
 
@@ -114,91 +114,93 @@
 
 ---
 
-## 🔄 IN PROGRESS: Multi-Agent Pipeline (v1.2)
+## ✅ IMPLEMENTED (SIMULATED): Multi-Agent Pipeline (v1.2)
 
-### ADK Agent Framework
-- [ ] BaseAgent abstract class with tool management
-- [ ] IngressIntakeAgent
-  - [ ] Gemini natural language processing
-  - [ ] Request validation via Zod
-  - [ ] Secret/PEM rejection callbacks
-- [ ] SupervisorAgent
-  - [ ] State machine for workflow transitions
-  - [ ] Bounded feedback loop (max_iterations=5)
-  - [ ] Session state checkpointing
+**Runtime decision:** The application uses TypeScript `@strands-agents/sdk` and
+`@strands-agents/harness`, not the Python Google ADK runtime named in the original
+plan. The pipeline is implemented and integration-tested against simulated local
+infrastructure. This does not complete live IAM, cluster, cloud, or OPA integration.
 
-### Phase A: Parallel Analysis
-- [ ] DiscoveryInventoryAgent
-  - [ ] K8s HTTPRoute lister
-  - [ ] Gateway API introspection
-  - [ ] Cloud LB inventory
-  - [ ] Managed TLS cert auditor
-  - [ ] Deterministic state_etag computation
-- [ ] PolicyComplianceAgent
-  - [ ] OPA/Rego engine integration
-  - [ ] Built-in rules (CTRL-TLS-13, CTRL-WAF-EXT, CTRL-POOL-ISO, CTRL-CERT-NONWILDCARD)
-  - [ ] Dynamic custom rules
-- [ ] ImpactAnalysisAgent
-  - [ ] Hostname collision detection
-  - [ ] Path prefix collision detection
-  - [ ] Backend health check audit
-  - [ ] BlastRadiusScore computation
+### Agent orchestration and security
+- [x] Native Strands Graph with intake → supervisor → Phase A fan-out → Phase B planning
+- [x] Natural-language intake with Zod validation and secret/PEM rejection
+- [x] Bounded supervisor revision loop and workflow/session state handling
+- [x] Per-agent `ReadOnlyIsolationIntervention` with explicit read-only tool allowlists
+- [x] Secret/TLS guardrails, steering, and HITL intervention wiring
+- [x] Deterministic model fallback and invocation limits for offline execution
 
-### Phase B: Sequential Planning
-- [ ] ChangePlanningAgent
-  - [ ] Gateway API HTTPRoute YAML synthesis
-  - [ ] Terraform HCL generation
-  - [ ] DiffHunk artifact creation
-  - [ ] Plan digest computation
-- [ ] ValidationRollbackAgent
-  - [ ] Dry-run API checks (server-side)
-  - [ ] RollbackPlan pre-computation
-  - [ ] Rollback digest binding
+### Analysis and planning (local simulated state)
+- [x] Route inventory, ETag lookup, and LB/DNS/TLS tool contracts
+- [x] Built-in and dynamic policy evaluation in application code (not OPA/Rego)
+- [x] Hostname/path collision checks and blast-radius scoring
+- [x] HTTPRoute YAML, Terraform HCL, diff, plan digest, and rollback artifact generation
+- [x] Workflow traces, session history, and Strands telemetry
 
-### Tool Decorators
-- [ ] @ReadOnlyValidator decorator for sa-ingress-readonly enforcement
-- [ ] @SecretScanner decorator for PEM/API key rejection
-- [ ] @TLSValidator decorator for TLS 1.3 enforcement
+### Still open before production
+- [ ] Provision and verify `sa-ingress-readonly` Workload Identity + Kubernetes RBAC
+- [ ] Connect live Gateway API, cloud LB, DNS, and managed-certificate adapters
+- [ ] Integrate actual OPA/Rego evaluation and server-side Kubernetes/Terraform dry-run
+- [ ] Add live backend health checks and verify real topology ETag stability
+- [ ] Decide whether to retain the implemented Strands TypeScript runtime or migrate to the plan's Python Google ADK stack
 
-### Estimated LOC: 1,200–1,500 (leveraging v1.1)
+### Verification
+- [x] `npm test -- server/__tests__/strandsIntegration.test.ts` — 6 passed
+- [x] `npm run lint` — passed
 
 ---
 
-## 🎯 TODO: ETag & Diff Engine (v1.3)
+## 🟡 IN PROGRESS: ETag & Diff Engine (v1.3)
 
-### Completed (90%)
+### Implemented
 - [x] Canonical JSON normalization
 - [x] Deterministic SHA-256 hashing
 - [x] State ETag computation
-- [x] Unified diff generation
+- [x] Plan digest independent of artifact insertion order
+- [x] Plan digest binds target ETag, change artifacts, and rollback artifacts
+- [x] Active server ETag repeatability across 50 snapshots, ignoring `updatedAt`
+- [x] Route-order independence without mutating caller-owned arrays
+- [x] ETag changes when a meaningful route field changes
+- [x] Active server diff aligns insertions/deletions and emits unified hunk ranges
+- [x] Empty-document additions/deletions do not produce phantom lines
+- [x] Bounded Myers line comparison with full-replacement fallback for large edit distances
+- [x] Text-only diff contract rejects NUL-containing input with a typed error
 - [x] Plan digest binding
 - [x] State versioning service
 
-### Remaining (10%)
-- [ ] Edge case tests (empty docs, 100MB+ files, binary diffs)
-- [ ] Performance benchmarks (target < 100ms for 10MB topology)
-- [ ] Diff merge conflict detection
-- [ ] Optimal diff algorithm selection (Myers vs. Patience)
+### Remaining
+- [x] Measure active diff performance on a 10MB topology (9,999,999 bytes, 100,000 lines, one changed line: 30.18 ms locally)
+- [ ] Add merge-conflict detection if required by the active plan contract
+- [ ] Exercise the active implementation against live HTTPRoute topology
+
+The NUL check rejects a common binary marker; it does not identify arbitrary
+binary data after a caller has decoded it into a string.
+The timing is an initial local measurement, not a hard CI performance assertion.
+The tests in `backend/__tests__/hashing-service.test.ts` cover the standalone
+foundation only; `server/__tests__/store.test.ts` covers the active Express
+implementation.
 
 ---
 
-## 📝 TODO: FastAPI SSE & TanStack UI (v1.4)
+## 📝 TODO: SSE & TanStack UI (v1.4)
 
-**Blocked:** Requires v1.1 & v1.3 integration tests + v1.2 agent pipeline
+**Prototype implemented:** Production identity, durable shared storage, and native browser-level reconnect validation remain open.
 
-### FastAPI Backend
-- [ ] SSE broadcaster with Last-Event-ID replay buffer
+### API Backend (implementation-plan target: FastAPI; current runtime: Express)
+- [x] SSE broadcaster with 100-event in-memory `Last-Event-ID` replay
+- [x] Resync notification for invalid, expired, or future event cursors
+- [x] TanStack Query invalidation on live workflow updates and `resync_required` (client regression tests)
+- [ ] Native browser SSE reconnect and replay cache synchronization
 - [ ] Authentication middleware (OIDC/JWT)
 - [ ] Request/response envelope with Zod validation
 - [ ] Workflow command endpoints
-  - [ ] POST /api/v1/workflows (create)
-  - [ ] GET /api/v1/workflows?status=INTAKE (list)
-  - [ ] GET /api/v1/workflows/{id} (detail)
-  - [ ] GET /api/v1/workflows/events (SSE stream)
-  - [ ] POST /api/v1/workflows/{id}/decision (approve/reject)
+  - [x] POST /api/v1/workflows (create)
+  - [x] GET /api/v1/workflows?status=INTAKE (validated list filter)
+  - [x] GET /api/v1/workflows/{id} (detail and missing-ID behavior)
+  - [x] GET /api/v1/workflows/events (SSE stream, replay, and cursor recovery)
+  - [x] POST /api/v1/workflows/{id}/decision (approve/reject lifecycle tested)
 - [ ] Audit log endpoints
-  - [ ] GET /api/v1/audit-log (paginated)
-  - [ ] GET /api/v1/audit-log/verify (chain verification)
+  - [x] GET /api/v1/audit-log (bounded optional pagination with page metadata)
+  - [x] GET /api/v1/audit-log/verify (full-chain verification independent of page filters)
 
 ### TanStack UI
 - [ ] TanStack Router
@@ -208,14 +210,14 @@
   - [ ] /audit-log (trail)
   - [ ] /architecture (overview)
 - [ ] TanStack Query
-  - [ ] SSE event cache synchronization
+  - [x] SSE resync cache invalidation (client unit test and browser smoke)
   - [ ] Optimistic mutations for approve/reject
-  - [ ] Automatic reconnection recovery
+  - [ ] Native Last-Event-ID reconnection recovery
 - [ ] TanStack Table
   - [ ] Workflows grid
   - [ ] Active routes matrix
   - [ ] Policy compliance matrix
-  - [ ] Audit trail searchable table
+  - [x] Audit trail searchable, server-paginated table
 - [ ] Governance Inspector
   - [ ] Side-by-side YAML/HCL diffs
   - [ ] BlastRadiusScore indicator
@@ -275,6 +277,26 @@
 
 ## 📊 Testing & Validation
 
+### v2/v3 Portable Execution Gates
+- [x] Recompute approval plan digest from the target ETag, change artifacts, and rollback artifacts before signing/execution
+- [x] Reject a tampered plan with `403`, a `SIGNATURE_INVALID` audit event, and no route mutation
+- [x] Verify same-process same-hostname contention allows only one workflow to mutate route state
+- [x] Require approval and active/completed direct-canary state before manual rollback
+- [x] Verify the active route is still owned by the workflow requesting rollback
+- [x] Reject pending and superseded-workflow rollback requests with `409` and preserve route state
+- [x] Verify live ETag and route ownership before canary promotion or rollback
+- [x] Abort drifted canary mutations with `409`, `DRIFT_ABORTED`, audit event, and no route mutation
+- [x] Revalidate HMAC approval and change/rollback artifact digests before each canary mutation
+- [x] Reject post-approval signature or artifact tampering with `403` and no route mutation
+- [x] Reject malformed `simulateProbeFailure` values with `422` rather than triggering rollback
+- [x] Require rollback reasons to be strings of at most 1000 characters; reject invalid input before mutation
+- [x] Reject repeated rollback attempts after `ROLLED_BACK` with `409` and preserve route state
+- [ ] Validate cross-process/instance concurrency with a durable transactional store
+
+Verification: `npm test` passes 56 tests across nine files; `npm run lint`,
+`npm run build`, and `git diff --check` pass. The concurrency test covers only
+the in-memory single-process simulator, not production transaction guarantees.
+
 ### v1.1 Integration Tests (Priority: HIGH)
 - [ ] Repository factory and lifecycle tests
 - [ ] Audit hash-chain correctness verification
@@ -285,13 +307,14 @@
 
 ### v1.3 Validation Gates
 - [ ] V1-SEC-01: Secret & PEM rejection (100% pass rate)
-- [ ] V1-DET-01: ETag determinism (50 consecutive runs bit-identical)
-- [ ] V1-SSE-01: SSE Last-Event-ID replay + cache sync
+- [x] V1-DET-01: Active simulator ETag is stable across 50 snapshots and route-order permutations
 - [ ] (Pending v1.2) V1-IAM-01: sa-ingress-readonly write rejection (403)
 
 ### v1.4 Integration Tests
-- [ ] SSE reconnect with event replay buffer
-- [ ] TanStack Query cache invalidation on SSE events
+- [x] SSE replay/resync server integration test (`server/__tests__/sseReplay.test.ts`)
+- [x] TanStack Query invalidation on live updates and `resync_required` (`src/lib/useWorkflowStream.test.ts`)
+- [x] Browser smoke confirms stubbed `resync_required` refreshes workflow and route queries (1 → 4), and native EventSource ahead-cursor recovery on an isolated app refreshes workflows
+- [ ] V1-SSE-01: Browser-generated `Last-Event-ID` reconnect/replay reconciles workflow and route caches
 - [ ] Zod validation on API endpoints
 - [ ] Approval modal 4-eyes validation
 

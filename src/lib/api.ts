@@ -24,6 +24,7 @@ import type {
   WorkflowHookStage,
   WorkflowPipelineConfig,
   WorkflowRun,
+  WorkflowStatus,
 } from "../shared/contracts";
 
 export const OPERATOR_PERSONAS: OperatorIdentity[] = [
@@ -122,11 +123,14 @@ export async function runStrandsEvals(): Promise<StrandsEvalRunReport> {
   return handleJson(res);
 }
 
-export async function fetchWorkflows(): Promise<{
+export async function fetchWorkflows(status?: WorkflowStatus): Promise<{
   liveStateEtag: string;
   workflows: WorkflowRun[];
 }> {
-  const res = await fetch("/api/v1/workflows", { headers: buildHeaders() });
+  const url = status
+    ? `/api/v1/workflows?status=${encodeURIComponent(status)}`
+    : "/api/v1/workflows";
+  const res = await fetch(url, { headers: buildHeaders() });
   return handleJson(res);
 }
 
@@ -219,6 +223,32 @@ export async function fetchAuditLog(): Promise<{
   verification: { valid: boolean; checkedCount: number; brokenAtSeq: number | null };
 }> {
   const res = await fetch("/api/v1/audit-log", { headers: buildHeaders() });
+  return handleJson(res);
+}
+
+export async function fetchAuditLogPage(params: {
+  limit: number;
+  offset: number;
+  actorType?: AuditEvent["actorType"];
+  search?: string;
+}): Promise<{
+  events: AuditEvent[];
+  verification: { valid: boolean; checkedCount: number; brokenAtSeq: number | null };
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    totalEvents: number;
+    hasMore: boolean;
+  };
+}> {
+  const query = new URLSearchParams({
+    limit: String(params.limit),
+    offset: String(params.offset),
+  });
+  if (params.actorType) query.set("actorType", params.actorType);
+  if (params.search) query.set("search", params.search);
+  const res = await fetch(`/api/v1/audit-log?${query}`, { headers: buildHeaders() });
   return handleJson(res);
 }
 
