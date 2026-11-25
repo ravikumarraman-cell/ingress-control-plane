@@ -113,8 +113,8 @@ export function WorkflowsPage() {
           header: "Application",
           cell: (info) => (
             <div>
-              <span className="font-semibold text-slate-900">{info.getValue()}</span>
-              <div className="text-xs font-mono text-slate-500">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{info.getValue()}</span>
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
                 {info.row.original.gatewayName}
               </div>
             </div>
@@ -123,7 +123,7 @@ export function WorkflowsPage() {
         routeColumnHelper.accessor("hostname", {
           header: "Hostname & Path",
           cell: (info) => (
-            <span className="font-mono text-xs text-slate-800">
+            <span className="font-mono text-xs text-slate-800 dark:text-slate-200">
               {info.getValue()}
               {info.row.original.pathPrefix}
             </span>
@@ -132,7 +132,7 @@ export function WorkflowsPage() {
         routeColumnHelper.accessor("backendService", {
           header: "Backend Target",
           cell: (info) => (
-            <span className="font-mono text-xs text-slate-700 tabular-nums">
+            <span className="font-mono text-xs text-slate-700 dark:text-slate-300 tabular-nums">
               {info.getValue()}:{info.row.original.backendPort}
             </span>
           ),
@@ -140,7 +140,7 @@ export function WorkflowsPage() {
         routeColumnHelper.accessor("environment", {
           header: "Env / Exposure",
           cell: (info) => (
-            <span className="font-mono text-xs text-slate-700">
+            <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
               {info.getValue()} · {info.row.original.exposure}
             </span>
           ),
@@ -148,7 +148,7 @@ export function WorkflowsPage() {
         routeColumnHelper.accessor("tlsProfile", {
           header: "TLS & WAF",
           cell: (info) => (
-            <span className="font-mono text-xs text-slate-700">
+            <span className="font-mono text-xs text-slate-700 dark:text-slate-300">
               {info.getValue()} · {info.row.original.wafEnabled ? "WAF On" : "WAF Off"}
             </span>
           ),
@@ -156,7 +156,7 @@ export function WorkflowsPage() {
         routeColumnHelper.accessor("canaryWeight", {
           header: "Weight",
           cell: (info) => (
-            <span className="font-mono text-xs tabular-nums text-slate-800">
+            <span className="font-mono text-xs tabular-nums text-slate-800 dark:text-slate-200">
               {info.getValue()}%
             </span>
           ),
@@ -180,12 +180,12 @@ export function WorkflowsPage() {
         subtitle="Read-only discovery, compliance validation, HITL approval gates, and active cluster routes."
         actions={
           <>
-            <div className="px-3 py-2 bg-white border border-slate-200 rounded-md flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-slate-500 shrink-0" />
-              <span className="text-xs text-slate-500">Live ETag:</span>
+            <div className="px-3 py-2 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">Live ETag:</span>
               <code
                 title={liveEtag}
-                className="text-xs font-mono text-slate-900 tabular-nums"
+                className="text-xs font-mono text-slate-900 dark:text-slate-100 tabular-nums"
               >
                 {liveEtag ? shortHash(liveEtag, 22) : "loading..."}
               </code>
@@ -194,7 +194,7 @@ export function WorkflowsPage() {
               type="button"
               onClick={() => driftMutation.mutate()}
               disabled={driftMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap shrink-0"
               title="Mutate a live route annotation out-of-band to test TOCTOU ETag anti-drift locking"
             >
               <RefreshCw
@@ -207,13 +207,13 @@ export function WorkflowsPage() {
       />
 
       {driftBanner && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg text-xs text-amber-900 dark:text-amber-200">
           <span className="font-mono">{driftBanner}</span>
           <button
             type="button"
             onClick={() => setDriftBanner(null)}
             aria-label="Dismiss drift notification"
-            className="text-amber-700 hover:text-amber-900 p-0.5 rounded"
+            className="text-amber-700 hover:text-amber-900 dark:text-amber-200 p-0.5 rounded"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -268,7 +268,7 @@ export function WorkflowsPage() {
               aria-label="Filter by workflow status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as "all" | WorkflowStatus)}
-              className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="px-2.5 py-1.5 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
             >
               <option value="all">All Statuses</option>
               <option value="AWAITING_APPROVAL">Awaiting Approval</option>
@@ -296,7 +296,7 @@ export function WorkflowsPage() {
       </div>
 
       {/* TanStack Table Container */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
         {activeTab === "workflows" ? (
           <WorkflowsTable
             workflows={filteredWorkflows}

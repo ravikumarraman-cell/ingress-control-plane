@@ -28,7 +28,7 @@ export function EtagLockIndicator({
   if (variant === "compact") {
     if (!targetEtag) {
       return (
-        <span className="inline-flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
+        <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
           <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <span>Unsealed</span>
         </span>
@@ -39,7 +39,7 @@ export function EtagLockIndicator({
       return (
         <span
           title={`Version lock valid\nPlan ETag: ${targetEtag}\nLive ETag: ${liveStateEtag}`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 whitespace-nowrap tabular-nums"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 whitespace-nowrap tabular-nums"
         >
           <Lock className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
           <span>Locked · {shortHash(targetEtag, 10)}</span>
@@ -51,7 +51,7 @@ export function EtagLockIndicator({
       return (
         <span
           title={`Version lock broken (cluster drift)\nPlan ETag: ${targetEtag}\nLive ETag: ${liveStateEtag ?? "unknown"}`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 whitespace-nowrap tabular-nums"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 dark:text-rose-400 whitespace-nowrap tabular-nums"
         >
           <Unlock className="h-3.5 w-3.5 text-red-600 shrink-0" />
           <span>{isDriftAborted ? "Drift Aborted" : "Stale Lock"}</span>
@@ -62,7 +62,7 @@ export function EtagLockIndicator({
     return (
       <span
         title={`Sealed ETag: ${targetEtag}`}
-        className="inline-flex items-center gap-1 text-xs text-slate-600 font-mono whitespace-nowrap tabular-nums"
+        className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap tabular-nums"
       >
         <Lock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
         <span>{shortHash(targetEtag, 10)}</span>
@@ -72,10 +72,10 @@ export function EtagLockIndicator({
 
   // Banner variant for pre-approval version lock inspection
   const containerClass = isSynced
-    ? "bg-emerald-50/70 border border-emerald-200 text-emerald-950"
+    ? "bg-emerald-50/70 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-950"
     : isStale
-      ? "bg-red-50/80 border border-red-200 text-red-950"
-      : "bg-slate-50 border border-slate-200 text-slate-800";
+      ? "bg-red-50/80 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/30 text-red-950"
+      : "bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200";
 
   return (
     <div
@@ -91,11 +91,11 @@ export function EtagLockIndicator({
     >
       <div className="flex items-start gap-2.5 min-w-0">
         {isSynced ? (
-          <Lock className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+          <Lock className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
         ) : isStale ? (
           <ShieldAlert className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
         ) : (
-          <Clock className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+          <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
         )}
 
         <div className="min-w-0 space-y-1">
@@ -111,17 +111,17 @@ export function EtagLockIndicator({
               ·
             </span>
             {isSynced ? (
-              <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
+              <span className="inline-flex items-center gap-1 font-medium text-emerald-800 dark:text-emerald-300">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                 TOCTOU Safe to Approve
               </span>
             ) : isStale ? (
-              <span className="inline-flex items-center gap-1 font-medium text-red-700">
+              <span className="inline-flex items-center gap-1 font-medium text-red-700 dark:text-rose-400">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                 Approval Blocked (HTTP 409 on Execute)
               </span>
             ) : (
-              <span className="text-slate-600">Checking live cluster hash...</span>
+              <span className="text-slate-600 dark:text-slate-400">Checking live cluster hash...</span>
             )}
           </div>
 
@@ -135,7 +135,7 @@ export function EtagLockIndicator({
 
             <span
               aria-hidden="true"
-              className={`font-bold ${isSynced ? "text-emerald-700" : isStale ? "text-red-700" : "text-slate-400"}`}
+              className={`font-bold ${isSynced ? "text-emerald-700 dark:text-emerald-400" : isStale ? "text-red-700 dark:text-rose-400" : "text-slate-400"}`}
             >
               {isSynced ? "===" : isStale ? "!==" : "·"}
             </span>

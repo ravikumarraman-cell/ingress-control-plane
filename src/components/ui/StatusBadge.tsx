@@ -19,60 +19,60 @@ interface BadgeStyle {
 const STATUS_STYLES: Record<WorkflowStatus, BadgeStyle> = {
   INTAKE: {
     label: "Intake",
-    surfaceClass: "bg-slate-100 text-slate-700",
+    surfaceClass: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
     Icon: Clock,
   },
   ANALYZING: {
     label: "Analyzing",
-    surfaceClass: "bg-blue-50 text-blue-800",
+    surfaceClass: "bg-blue-50 dark:bg-sky-500/10 text-blue-800",
     Icon: Loader2,
     spin: true,
   },
   PLANNING: {
     label: "Planning",
-    surfaceClass: "bg-blue-50 text-blue-800",
+    surfaceClass: "bg-blue-50 dark:bg-sky-500/10 text-blue-800",
     Icon: Loader2,
     spin: true,
   },
   AWAITING_APPROVAL: {
     label: "Awaiting Approval",
-    surfaceClass: "bg-amber-50 text-amber-800",
+    surfaceClass: "bg-amber-50 dark:bg-amber-500/10 text-amber-800",
     Icon: Clock,
   },
   APPROVED: {
     label: "Approved",
-    surfaceClass: "bg-emerald-50 text-emerald-800",
+    surfaceClass: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
     Icon: CheckCircle2,
   },
   EXECUTING: {
     label: "Executing",
-    surfaceClass: "bg-blue-50 text-blue-800",
+    surfaceClass: "bg-blue-50 dark:bg-sky-500/10 text-blue-800",
     Icon: Loader2,
     spin: true,
   },
   COMPLETED: {
     label: "Completed",
-    surfaceClass: "bg-emerald-50 text-emerald-800",
+    surfaceClass: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
     Icon: CheckCircle2,
   },
   FAILED: {
     label: "Failed",
-    surfaceClass: "bg-red-50 text-red-800",
+    surfaceClass: "bg-red-50 dark:bg-rose-500/10 text-red-800",
     Icon: AlertTriangle,
   },
   REJECTED: {
     label: "Rejected",
-    surfaceClass: "bg-red-50 text-red-800",
+    surfaceClass: "bg-red-50 dark:bg-rose-500/10 text-red-800",
     Icon: XCircle,
   },
   DRIFT_ABORTED: {
     label: "Drift Aborted",
-    surfaceClass: "bg-red-50 text-red-800",
+    surfaceClass: "bg-red-50 dark:bg-rose-500/10 text-red-800",
     Icon: ShieldAlert,
   },
   ROLLED_BACK: {
     label: "Rolled Back",
-    surfaceClass: "bg-amber-50 text-amber-900",
+    surfaceClass: "bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-200",
     Icon: RotateCcw,
   },
 };
@@ -90,7 +90,7 @@ export function StatusBadge({
 }: StatusBadgeProps) {
   const style = STATUS_STYLES[status] ?? {
     label: status,
-    surfaceClass: "bg-slate-100 text-slate-700",
+    surfaceClass: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
     Icon: Clock,
   };
   const Icon = style.Icon;

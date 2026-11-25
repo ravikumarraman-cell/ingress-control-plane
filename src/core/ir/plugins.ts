@@ -1,0 +1,312 @@
+import { MiddlewarePlugin } from './types';
+
+export const BUILT_IN_PLUGINS: Record<string, MiddlewarePlugin> = {
+  'rate-limit': {
+    id: 'rate-limit',
+    name: 'Rate Limiting (Token Bucket)',
+    category: 'traffic',
+    description: 'Enforces distributed token-bucket request quotas per client identity.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Token Bucket Rate Limiter',
+      required: ['requestsPerSecond', 'burstSize', 'keyBy'],
+      properties: {
+        requestsPerSecond: {
+          type: 'integer',
+          title: 'Requests / Second',
+          description: 'Sustained token refill rate per second.',
+          default: 250,
+          minimum: 1,
+          maximum: 100000,
+        },
+        burstSize: {
+          type: 'integer',
+          title: 'Burst Capacity',
+          description: 'Maximum instantaneous burst tokens allowed.',
+          default: 500,
+          minimum: 1,
+          maximum: 250000,
+        },
+        keyBy: {
+          type: 'string',
+          title: 'Partition Key',
+          description: 'Request attribute used to isolate rate limit buckets.',
+          enum: ['client_ip', 'header_x_api_key', 'jwt_sub'],
+          default: 'client_ip',
+        },
+        statusCode: {
+          type: 'integer',
+          title: 'Rejection Status',
+          enum: [429, 503],
+          default: 429,
+        },
+      },
+    },
+    defaultConfig: {
+      requestsPerSecond: 250,
+      burstSize: 500,
+      keyBy: 'client_ip',
+      statusCode: 429,
+    },
+  },
+  'jwt-auth': {
+    id: 'jwt-auth',
+    name: 'JWT / OIDC Auth',
+    category: 'security',
+    description: 'Validates Bearer JWT signatures, issuer claims, and required OAuth scopes.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'JWT / OIDC Verification',
+      required: ['issuer', 'audience'],
+      properties: {
+        issuer: {
+          type: 'string',
+          title: 'OIDC Issuer URL',
+          default: 'https://auth.ingressos.internal/',
+        },
+        audience: {
+          type: 'string',
+          title: 'Expected Audience',
+          default: 'api.ingressos.internal',
+        },
+        headerName: {
+          type: 'string',
+          title: 'Token Header',
+          default: 'Authorization',
+        },
+        requiredScope: {
+          type: 'string',
+          title: 'Required Scope',
+          default: 'read:edge',
+        },
+        allowMissingInDev: {
+          type: 'boolean',
+          title: 'Permissive Dry-Run',
+          description: 'Log invalid tokens without blocking requests.',
+          default: false,
+        },
+      },
+    },
+    defaultConfig: {
+      issuer: 'https://auth.ingressos.internal/',
+      audience: 'api.ingressos.internal',
+      headerName: 'Authorization',
+      requiredScope: 'read:edge',
+      allowMissingInDev: false,
+    },
+  },
+  'mtls-enforce': {
+    id: 'mtls-enforce',
+    name: 'mTLS Enforcement',
+    category: 'security',
+    description: 'Requires verified client X.509 certificates and SPIFFE identity matching.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Mutual TLS Policy',
+      required: ['requireClientCert', 'verifyDepth'],
+      properties: {
+        requireClientCert: {
+          type: 'boolean',
+          title: 'Require Client Certificate',
+          default: true,
+        },
+        verifyDepth: {
+          type: 'integer',
+          title: 'Chain Verify Depth',
+          default: 2,
+          minimum: 1,
+          maximum: 5,
+        },
+        allowedSpiffePrefix: {
+          type: 'string',
+          title: 'Allowed SPIFFE Trust Domain',
+          default: 'spiffe://prod.ingressos.mesh/',
+        },
+        forwardClientCertHeader: {
+          type: 'boolean',
+          title: 'Forward X-Forwarded-Client-Cert',
+          default: true,
+        },
+      },
+    },
+    defaultConfig: {
+      requireClientCert: true,
+      verifyDepth: 2,
+      allowedSpiffePrefix: 'spiffe://prod.ingressos.mesh/',
+      forwardClientCertHeader: true,
+    },
+  },
+  cors: {
+    id: 'cors',
+    name: 'CORS Policy',
+    category: 'transform',
+    description: 'Controls cross-origin preflight headers and allowed origin patterns.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Cross-Origin Resource Sharing',
+      required: ['allowedOrigins', 'maxAgeSeconds'],
+      properties: {
+        allowedOrigins: {
+          type: 'string',
+          title: 'Allowed Origins (comma-separated)',
+          default: 'https://app.ingressos.io,https://console.ingressos.io',
+        },
+        allowedMethods: {
+          type: 'string',
+          title: 'Allowed Methods',
+          default: 'GET,POST,PUT,DELETE,OPTIONS',
+        },
+        allowCredentials: {
+          type: 'boolean',
+          title: 'Allow Credentials',
+          default: true,
+        },
+        maxAgeSeconds: {
+          type: 'integer',
+          title: 'Preflight Max Age (s)',
+          default: 3600,
+          minimum: 0,
+          maximum: 86400,
+        },
+      },
+    },
+    defaultConfig: {
+      allowedOrigins: 'https://app.ingressos.io,https://console.ingressos.io',
+      allowedMethods: 'GET,POST,PUT,DELETE,OPTIONS',
+      allowCredentials: true,
+      maxAgeSeconds: 3600,
+    },
+  },
+  'header-transform': {
+    id: 'header-transform',
+    name: 'Header Transformation',
+    category: 'transform',
+    description: 'Injects upstream correlation headers and strips sensitive edge headers.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Request & Response Header Mutation',
+      properties: {
+        addHeaderKey: {
+          type: 'string',
+          title: 'Inject Header Name',
+          default: 'X-Ingress-Gateway',
+        },
+        addHeaderValue: {
+          type: 'string',
+          title: 'Inject Header Value',
+          default: 'ingressos-edge-v4',
+        },
+        stripHeaders: {
+          type: 'string',
+          title: 'Strip Headers (comma-separated)',
+          default: 'X-Internal-Debug,Server',
+        },
+        preserveHostHeader: {
+          type: 'boolean',
+          title: 'Preserve Original Host',
+          default: true,
+        },
+      },
+    },
+    defaultConfig: {
+      addHeaderKey: 'X-Ingress-Gateway',
+      addHeaderValue: 'ingressos-edge-v4',
+      stripHeaders: 'X-Internal-Debug,Server',
+      preserveHostHeader: true,
+    },
+  },
+  'waf-ruleset': {
+    id: 'waf-ruleset',
+    name: 'WAF Ruleset (OWASP CRS)',
+    category: 'security',
+    description: 'Inspects payloads, query strings, and headers for SQLi, XSS, and path traversal.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Web Application Firewall',
+      required: ['mode', 'paranoiaLevel'],
+      properties: {
+        mode: {
+          type: 'string',
+          title: 'Enforcement Mode',
+          enum: ['block', 'detect'],
+          default: 'block',
+        },
+        paranoiaLevel: {
+          type: 'integer',
+          title: 'OWASP Paranoia Level',
+          default: 2,
+          minimum: 1,
+          maximum: 4,
+        },
+        blockSqlInjection: {
+          type: 'boolean',
+          title: 'Block SQL Injection',
+          default: true,
+        },
+        blockXss: {
+          type: 'boolean',
+          title: 'Block XSS & Script Payloads',
+          default: true,
+        },
+      },
+    },
+    defaultConfig: {
+      mode: 'block',
+      paranoiaLevel: 2,
+      blockSqlInjection: true,
+      blockXss: true,
+    },
+  },
+  'circuit-breaker': {
+    id: 'circuit-breaker',
+    name: 'Circuit Breaker',
+    category: 'resilience',
+    description: 'Trips failing upstream connections and triggers automatic failover routing.',
+    builtIn: true,
+    schema: {
+      type: 'object',
+      title: 'Outlier & Circuit Breaker Guard',
+      required: ['consecutiveErrors', 'intervalMs', 'baseEjectionTimeMs'],
+      properties: {
+        consecutiveErrors: {
+          type: 'integer',
+          title: 'Consecutive 5xx Threshold',
+          default: 3,
+          minimum: 1,
+          maximum: 50,
+        },
+        intervalMs: {
+          type: 'integer',
+          title: 'Analysis Window (ms)',
+          default: 10000,
+          minimum: 1000,
+          maximum: 60000,
+        },
+        baseEjectionTimeMs: {
+          type: 'integer',
+          title: 'Ejection Cooldown (ms)',
+          default: 30000,
+          minimum: 5000,
+          maximum: 300000,
+        },
+        autoFailover: {
+          type: 'boolean',
+          title: 'Automatic Failover on Open',
+          default: true,
+        },
+      },
+    },
+    defaultConfig: {
+      consecutiveErrors: 3,
+      intervalMs: 10000,
+      baseEjectionTimeMs: 30000,
+      autoFailover: true,
+    },
+  },
+};

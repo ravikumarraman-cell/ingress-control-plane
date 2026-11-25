@@ -32,12 +32,12 @@ export function SupervisorRevisePanel({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-3">
       <div>
-        <h2 className="text-sm font-semibold text-slate-900">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
           Supervisor Agent Feedback Loop (Iteration {iteration}/{maxIterations})
         </h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           Steer the agents with new instructions or parameter tweaks—re-runs Phase A & B and seals a
           fresh ChangePlan & RollbackPlan.
         </p>
@@ -48,7 +48,7 @@ export function SupervisorRevisePanel({
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           placeholder="e.g., Switch backend port to 9443 and verify strict TLS posture"
-          className="md:col-span-3 px-3 py-2 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+          className="md:col-span-3 px-3 py-2 text-xs border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
         />
         <input
           type="number"
@@ -57,15 +57,15 @@ export function SupervisorRevisePanel({
           value={portText}
           onChange={(e) => setPortText(e.target.value)}
           placeholder={`Port override (now ${currentPort})`}
-          className="px-3 py-2 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 tabular-nums"
+          className="px-3 py-2 text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 tabular-nums"
         />
       </div>
-      {errorMessage && <p className="text-xs text-red-700">{errorMessage}</p>}
+      {errorMessage && <p className="text-xs text-red-700 dark:text-rose-400">{errorMessage}</p>}
       <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
+          className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60"
         >
           Cancel
         </button>

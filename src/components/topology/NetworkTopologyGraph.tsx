@@ -367,14 +367,14 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
       {/* Toolbar */}
-      <div className="px-5 py-3.5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Interactive Agent Connectivity & Traffic Flow Topology (D3.js)
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
             Derived from stored specification ({graph.specSummary.specNodeCount} spec nodes ·{" "}
             {graph.specSummary.specEdgeCount} spec edges) + live dynamic specialists & cluster routes.
           </p>
@@ -393,12 +393,12 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
             ]}
           />
 
-          <div className="flex items-center gap-1 border border-slate-200 rounded-md p-0.5 bg-slate-50">
+          <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-800 rounded-md p-0.5 bg-slate-50 dark:bg-[#090D16]">
             <button
               type="button"
               onClick={() => handleZoom(1.2)}
               aria-label="Zoom in topology"
-              className="p-1.5 text-slate-600 hover:text-slate-950 hover:bg-white rounded transition-colors"
+              className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 rounded transition-colors"
             >
               <ZoomIn className="h-3.5 w-3.5" />
             </button>
@@ -406,7 +406,7 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
               type="button"
               onClick={() => handleZoom(0.82)}
               aria-label="Zoom out topology"
-              className="p-1.5 text-slate-600 hover:text-slate-950 hover:bg-white rounded transition-colors"
+              className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 rounded transition-colors"
             >
               <ZoomOut className="h-3.5 w-3.5" />
             </button>
@@ -414,7 +414,7 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
               type="button"
               onClick={handleResetView}
               aria-label="Reset topology zoom"
-              className="p-1.5 text-slate-600 hover:text-slate-950 hover:bg-white rounded transition-colors"
+              className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800 rounded transition-colors"
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </button>
@@ -423,8 +423,8 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
       </div>
 
       {/* Main Split: D3 Canvas + Node/Path Inspector */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 divide-y xl:divide-y-0 xl:divide-x divide-slate-200">
-        <div className="xl:col-span-8 bg-slate-50/60 relative">
+      <div className="grid grid-cols-1 xl:grid-cols-12 divide-y xl:divide-y-0 xl:divide-x divide-slate-200 dark:divide-slate-800">
+        <div className="xl:col-span-8 bg-slate-50/60 dark:bg-[#090D16] relative">
           <svg
             ref={svgRef}
             className="w-full h-[480px] select-none touch-none"
@@ -433,21 +433,21 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
           />
 
           {/* Quiet Legend Strip */}
-          <div className="px-4 py-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center gap-4 text-[11px] text-slate-600">
+          <div className="px-4 py-2.5 bg-white dark:bg-[#0F172A] border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-4 text-[11px] text-slate-600 dark:text-slate-400">
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-xs bg-slate-100 border border-slate-600" />
+              <span className="h-2.5 w-2.5 rounded-xs bg-slate-100 dark:bg-slate-800 border border-slate-600" />
               Read-Only AI Agent
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-xs bg-emerald-50 border border-emerald-600 border-dashed" />
+              <span className="h-2.5 w-2.5 rounded-xs bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-600 border-dashed" />
               On-the-Fly Specialist
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-xs bg-amber-50 border border-amber-600" />
+              <span className="h-2.5 w-2.5 rounded-xs bg-amber-50 dark:bg-amber-500/10 border border-amber-600" />
               HITL Four-Eyes Gate
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-xs bg-red-50 border border-red-600" />
+              <span className="h-2.5 w-2.5 rounded-xs bg-red-50 dark:bg-rose-500/10 border border-red-600" />
               Scoped Write Executor
             </span>
             <span className="inline-flex items-center gap-1.5">
@@ -458,11 +458,11 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
         </div>
 
         {/* Interactive Node & Path Inspector */}
-        <div className="xl:col-span-4 p-5 bg-white space-y-4">
+        <div className="xl:col-span-4 p-5 bg-white dark:bg-[#0F172A] space-y-4">
           {selectedNode ? (
             <>
-              <div className="space-y-1 border-b border-slate-200 pb-3">
-                <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+              <div className="space-y-1 border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <span>{NODE_PALETTE[selectedNode.kind].badge}</span>
                   <span className="font-mono">
                     {selectedNode.source === "spec"
@@ -472,36 +472,36 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
                         : "Live Cluster Route"}
                   </span>
                 </div>
-                <h3 className="text-base font-semibold text-slate-950">{selectedNode.label}</h3>
-                <div className="text-xs font-mono text-slate-600">{selectedNode.subtitle}</div>
+                <h3 className="text-base font-semibold text-slate-950 dark:text-slate-50">{selectedNode.label}</h3>
+                <div className="text-xs font-mono text-slate-600 dark:text-slate-400">{selectedNode.subtitle}</div>
               </div>
 
-              <p className="text-xs text-slate-600 leading-relaxed">{selectedNode.detailText}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{selectedNode.detailText}</p>
 
-              <div className="grid grid-cols-1 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-md text-xs">
+              <div className="grid grid-cols-1 gap-2 p-3 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md text-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500">Security Boundary</span>
-                  <span className="font-mono font-medium text-slate-900">
+                  <span className="text-slate-500 dark:text-slate-400">Security Boundary</span>
+                  <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
                     {selectedNode.securityBoundary}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-500">Live Telemetry</span>
-                  <span className="font-mono text-slate-800 tabular-nums">
+                  <span className="text-slate-500 dark:text-slate-400">Live Telemetry</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200 tabular-nums">
                     {selectedNode.metricsSummary}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-2.5">
-                <div className="text-xs font-semibold text-slate-800">
+                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                   Connected Paths ({connectedEdges.incoming.length} in ·{" "}
                   {connectedEdges.outgoing.length} out)
                 </div>
 
                 {connectedEdges.incoming.length > 0 && (
                   <div className="space-y-1">
-                    <div className="text-[11px] font-medium text-slate-500">Upstream Sources</div>
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Upstream Sources</div>
                     <div className="space-y-1">
                       {connectedEdges.incoming.map((edge) => {
                         const src = nodeMap.get(edge.source);
@@ -511,10 +511,10 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
                             key={edge.id}
                             type="button"
                             onClick={() => setSelectedNodeId(src.id)}
-                            className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors text-left"
+                            className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-[#090D16] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded transition-colors text-left"
                           >
-                            <span className="font-medium text-slate-900 truncate">{src.label}</span>
-                            <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                            <span className="font-medium text-slate-900 dark:text-slate-100 truncate">{src.label}</span>
+                            <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
                               {edge.label ?? edge.kind}
                             </span>
                           </button>
@@ -526,7 +526,7 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
 
                 {connectedEdges.outgoing.length > 0 && (
                   <div className="space-y-1">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       Downstream Targets
                     </div>
                     <div className="space-y-1">
@@ -538,13 +538,13 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
                             key={edge.id}
                             type="button"
                             onClick={() => setSelectedNodeId(tgt.id)}
-                            className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded transition-colors text-left"
+                            className="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-[#090D16] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded transition-colors text-left"
                           >
-                            <span className="inline-flex items-center gap-1.5 font-medium text-slate-900 truncate">
-                              <ArrowRight className="h-3 w-3 text-blue-700 shrink-0" />
+                            <span className="inline-flex items-center gap-1.5 font-medium text-slate-900 dark:text-slate-100 truncate">
+                              <ArrowRight className="h-3 w-3 text-blue-700 dark:text-sky-400 shrink-0" />
                               {tgt.label}
                             </span>
-                            <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                            <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
                               {edge.label ?? edge.kind}
                             </span>
                           </button>
@@ -556,7 +556,7 @@ export function NetworkTopologyGraph({ flowchartMermaidOverride }: NetworkTopolo
               </div>
             </>
           ) : (
-            <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+            <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
               <Maximize2 className="h-4 w-4 text-slate-400" />
               <span>Click any node in the topology to inspect connectivity and traffic rules.</span>
             </div>

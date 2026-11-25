@@ -154,7 +154,7 @@ export function ArchitecturePage() {
       <PageHeader
         title="Ingress Control Plane — Architecture & Leadership Brief"
         subtitle={
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span>Executive value story, on-the-fly agent design, and technical blueprint</span>
             <span aria-hidden="true">·</span>
             <span className="font-mono">{docQuery.data?.filePath ?? "docs/architecture-spec.md"}</span>
@@ -175,7 +175,7 @@ export function ArchitecturePage() {
             <button
               type="button"
               onClick={handleCopyMarkdown}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -194,7 +194,7 @@ export function ArchitecturePage() {
                   "text/markdown;charset=utf-8"
                 )
               }
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
             >
               <Download className="h-3.5 w-3.5" />
               Export .md
@@ -219,35 +219,35 @@ export function ArchitecturePage() {
       />
 
       {docQuery.isLoading ? (
-        <div className="h-96 bg-white border border-slate-200 rounded-lg animate-pulse" />
+        <div className="h-96 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg animate-pulse" />
       ) : tab === "executive" ? (
         <LeadershipOverviewSection adoptionMermaid={docQuery.data?.adoptionMermaid} />
       ) : tab === "topology" ? (
         <NetworkTopologyGraph flowchartMermaidOverride={docQuery.data?.flowchartMermaid} />
       ) : tab === "diagrams" ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-slate-800">
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">1. Zero Latency in Traffic</div>
-              <p className="text-xs text-slate-600 mt-1">
+              <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">1. Zero Latency in Traffic</div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 AI runs offline in the planning control plane; live user packets never wait on LLM calls.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">2. Read-Only Agents First</div>
-              <p className="text-xs text-slate-600 mt-1">
+              <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">2. Read-Only Agents First</div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 Analysis and on-the-fly agents run with <code className="font-mono">sa-ingress-readonly</code>; only Execution holds write keys.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">3. Anti-Drift ETag Lock</div>
-              <p className="text-xs text-slate-600 mt-1">
+              <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">3. Anti-Drift ETag Lock</div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 Every plan pins a SHA-256 snapshot (<code className="font-mono">target_state_etag</code>) re-verified right before apply.
               </p>
             </div>
             <div className="p-4">
-              <div className="text-xs font-semibold text-slate-900">4. Instant Rollback (&lt; 60s)</div>
-              <p className="text-xs text-slate-600 mt-1">
+              <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">4. Instant Rollback (&lt; 60s)</div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
                 Rollbacks are pre-built prior to human approval—executed deterministically if probes fail.
               </p>
             </div>
@@ -255,7 +255,7 @@ export function ArchitecturePage() {
 
           {docQuery.data?.flowchartMermaid && (
             <div className="space-y-2">
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 <strong>Friendly Guide:</strong> Read top-to-bottom—Requests enter the web control plane,
                 pass through parallel read-only AI checks, pause for signed human sign-off (amber), and
                 only then touch Kubernetes/Cloud APIs.
@@ -269,7 +269,7 @@ export function ArchitecturePage() {
 
           {docQuery.data?.sequenceMermaid && (
             <div className="space-y-2">
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 <strong>Friendly Guide:</strong> Step-by-step lifecycle showing how an engineer's request
                 is checked in parallel, signed off by a reviewer, checked against cluster drift, and
                 protected by automated health probes.
@@ -297,15 +297,15 @@ export function ArchitecturePage() {
       ) : tab === "roadmap" ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
-              <div className="text-xs font-mono text-slate-500">Phase v1</div>
-              <h3 className="text-base font-semibold text-slate-900">
+            <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-3">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v1</div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Read-Only Advisory + TanStack UI
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Full discovery, policy compliance evaluation, collision/blast-radius analysis, and YAML/HCL diff synthesis without automated write execution.
               </p>
-              <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs text-slate-700">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                 <div className="font-semibold">Validation Gates</div>
                 <p>• V1-SEC-01: Secret/PEM rejection in IngressRequest</p>
                 <p>• V1-IAM-01: Read-only IAM returns 403 on write verbs</p>
@@ -314,15 +314,15 @@ export function ArchitecturePage() {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
-              <div className="text-xs font-mono text-slate-500">Phase v2</div>
-              <h3 className="text-base font-semibold text-slate-900">
+            <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-3">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v2</div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 GitOps PR Execution + HITL Gate
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 ExecutionAgent opens GitOps Pull Requests upon signed TanStack UI approval after verifying four-eyes RBAC and TOCTOU ETag parity.
               </p>
-              <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs text-slate-700">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                 <div className="font-semibold">Validation Gates</div>
                 <p>• V2-DRIFT-01: Out-of-band drift triggers DRIFT_ABORTED</p>
                 <p>• V2-TAMPER-01: HMAC/KMS plan digest tamper rejection</p>
@@ -331,15 +331,15 @@ export function ArchitecturePage() {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-3">
-              <div className="text-xs font-mono text-slate-500">Phase v3</div>
-              <h3 className="text-base font-semibold text-slate-900">
+            <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-3">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v3</div>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Direct Gated Canary + Auto-Rollback
               </h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                 Scoped API execution with progressive canary weights, real-time synthetic probes, and deterministic zero-LLM rollback under 60 seconds.
               </p>
-              <div className="pt-2 border-t border-slate-200 space-y-1.5 text-xs text-slate-700">
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                 <div className="font-semibold">Validation Gates</div>
                 <p>• V3-CHAOS-01: HTTP 503 failure injection -&gt; rollback &lt; 60s</p>
                 <p>• V3-AUDIT-01: Audit hash-chain integrity seq 1..N</p>
@@ -349,9 +349,9 @@ export function ArchitecturePage() {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-              <span className="text-xs font-mono text-slate-700">
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 dark:bg-[#090D16] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+              <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
                 {docQuery.data?.implementationPlanPath ?? "docs/implementation-plan.md"}
               </span>
               <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ export function ArchitecturePage() {
                       "text/markdown;charset=utf-8"
                     )
                   }
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 whitespace-nowrap"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Export Plan .md
@@ -384,59 +384,59 @@ export function ArchitecturePage() {
               value={draftPlanMarkdown}
               onChange={(e) => setDraftPlanMarkdown(e.target.value)}
               rows={24}
-              className="w-full p-4 text-xs font-mono text-slate-900 bg-white focus:outline-none leading-relaxed"
+              className="w-full p-4 text-xs font-mono text-slate-900 dark:text-slate-100 bg-white dark:bg-[#0F172A] focus:outline-none leading-relaxed"
               aria-label="Stored phased implementation plan markdown"
             />
           </div>
         </div>
       ) : tab === "progress" ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 bg-white border border-slate-200 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-slate-800">
             <div className="p-4 space-y-1">
-              <div className="text-xs font-mono text-slate-500">Phase v1</div>
-              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v1</div>
+              <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
                 95%
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Advisory pipeline, Gemini intake, ETag determinism, SSE replay & bundle export done.
               </p>
             </div>
             <div className="p-4 space-y-1">
-              <div className="text-xs font-mono text-slate-500">Phase v2</div>
-              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v2</div>
+              <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
                 90%
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Configurable HITL gate, four-eyes RBAC, HMAC signing, TOCTOU drift lock & replan done.
               </p>
             </div>
             <div className="p-4 space-y-1">
-              <div className="text-xs font-mono text-slate-500">Phase v3</div>
-              <div className="text-xl font-semibold text-blue-700 font-mono tabular-nums">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">Phase v3</div>
+              <div className="text-xl font-semibold text-blue-700 dark:text-sky-400 font-mono tabular-nums">
                 85%
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Staged canary shifting (10→50→100%), 4-probe checks, instant rollback & audit verifier.
               </p>
             </div>
             <div className="p-4 space-y-1">
-              <div className="text-xs font-mono text-slate-500">On-the-Fly Agent Engine</div>
-              <div className="text-xl font-semibold text-emerald-700 font-mono tabular-nums">
+              <div className="text-xs font-mono text-slate-500 dark:text-slate-400">On-the-Fly Agent Engine</div>
+              <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
                 100%
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Custom specialist agents, dynamic policy rules, Supervisor loops & real-time diagram.
               </p>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   Live Validation Gate Verification Suite
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Execute real server-side checks against secret rejection, 50x ETag determinism, RBAC separation, and SHA-256 audit continuity.
                 </p>
               </div>
@@ -458,16 +458,16 @@ export function ArchitecturePage() {
                     key={gate.gateId}
                     className={`p-3.5 border rounded-md text-xs ${
                       gate.passed
-                        ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
-                        : "bg-red-50 border-red-200 text-red-900"
+                        ? "bg-emerald-50/70 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-900"
+                        : "bg-red-50 dark:bg-rose-500/10 border-red-200 dark:border-rose-500/30 text-red-900"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 font-semibold">
                       <span className="inline-flex items-center gap-1.5">
                         {gate.passed ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
                         ) : (
-                          <XCircle className="h-3.5 w-3.5 text-red-700" />
+                          <XCircle className="h-3.5 w-3.5 text-red-700 dark:text-rose-400" />
                         )}
                         {gate.gateId} · {gate.name}
                       </span>
@@ -480,9 +480,9 @@ export function ArchitecturePage() {
             )}
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-              <span className="text-xs font-mono text-slate-700">
+          <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-slate-50 dark:bg-[#090D16] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+              <span className="text-xs font-mono text-slate-700 dark:text-slate-300">
                 {docQuery.data?.implementationProgressPath ?? "docs/implementation-progress.md"}
               </span>
               <div className="flex items-center gap-2">
@@ -495,7 +495,7 @@ export function ArchitecturePage() {
                       "text/markdown;charset=utf-8"
                     )
                   }
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 whitespace-nowrap"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Export Progress .md
@@ -515,15 +515,15 @@ export function ArchitecturePage() {
               value={draftProgressMarkdown}
               onChange={(e) => setDraftProgressMarkdown(e.target.value)}
               rows={24}
-              className="w-full p-4 text-xs font-mono text-slate-900 bg-white focus:outline-none leading-relaxed"
+              className="w-full p-4 text-xs font-mono text-slate-900 dark:text-slate-100 bg-white dark:bg-[#0F172A] focus:outline-none leading-relaxed"
               aria-label="Stored implementation progress tracker markdown"
             />
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-            <span className="text-xs font-mono text-slate-700">{docQuery.data?.filePath}</span>
+        <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50 dark:bg-[#090D16] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+            <span className="text-xs font-mono text-slate-700 dark:text-slate-300">{docQuery.data?.filePath}</span>
             <button
               type="button"
               onClick={() => saveMutation.mutate(draftMarkdown)}
@@ -538,7 +538,7 @@ export function ArchitecturePage() {
             value={draftMarkdown}
             onChange={(e) => setDraftMarkdown(e.target.value)}
             rows={26}
-            className="w-full p-4 text-xs font-mono text-slate-900 bg-white focus:outline-none leading-relaxed"
+            className="w-full p-4 text-xs font-mono text-slate-900 dark:text-slate-100 bg-white dark:bg-[#0F172A] focus:outline-none leading-relaxed"
             aria-label="Stored architecture markdown document"
           />
         </div>

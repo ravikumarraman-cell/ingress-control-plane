@@ -43,18 +43,18 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
   const activeCount = rules.filter((r) => r.enabled).length;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-4">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Dynamic Policy Rules (Evaluated by PolicyComplianceAgent)
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Toggle or add custom governance rules without restarting the server. Active rules apply
             immediately to every new or revised workflow.
           </p>
         </div>
-        <span className="text-xs font-mono tabular-nums text-slate-500">
+        <span className="text-xs font-mono tabular-nums text-slate-500 dark:text-slate-400">
           {activeCount} active rules
         </span>
       </div>
@@ -63,15 +63,15 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
         {rules.map((rule) => (
           <div
             key={rule.ruleId}
-            className="flex items-start justify-between gap-3 p-3.5 border border-slate-200 rounded-md bg-slate-50/50"
+            className="flex items-start justify-between gap-3 p-3.5 border border-slate-200 dark:border-slate-800 rounded-md bg-slate-50/50 dark:bg-[#090D16]"
           >
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-2 text-xs">
-                <span className="font-semibold text-slate-900 truncate">{rule.name}</span>
-                <span className="font-mono text-[11px] text-slate-500">{rule.severity}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100 truncate">{rule.name}</span>
+                <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">{rule.severity}</span>
               </div>
-              <p className="text-xs text-slate-600">{rule.description}</p>
-              <div className="text-[11px] font-mono text-slate-500">
+              <p className="text-xs text-slate-600 dark:text-slate-400">{rule.description}</p>
+              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                 {rule.ruleId} · {rule.conditionType} = {rule.value || "any"}
               </div>
             </div>
@@ -87,8 +87,8 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
                 }
                 className={`px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
                   rule.enabled
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+                    : "bg-white dark:bg-[#0F172A] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {rule.enabled ? "Enabled" : "Disabled"}
@@ -110,7 +110,7 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
         <div className="sm:col-span-2">
           <label
             htmlFor="policy-rule-name"
-            className="block text-[11px] font-medium text-slate-600 mb-1"
+            className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1"
           >
             New Rule Name
           </label>
@@ -120,13 +120,13 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
             value={ruleName}
             onChange={(e) => setRuleName(e.target.value)}
             placeholder="e.g. Max Service Port 9443"
-            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
         <div>
           <label
             htmlFor="policy-rule-type"
-            className="block text-[11px] font-medium text-slate-600 mb-1"
+            className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1"
           >
             Rule Type
           </label>
@@ -134,7 +134,7 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
             id="policy-rule-type"
             value={ruleType}
             onChange={(e) => setRuleType(e.target.value as CustomPolicyRule["conditionType"])}
-            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
             <option value="max_port">Max Backend Port</option>
             <option value="allowed_domain_suffix">Domain Suffix</option>
@@ -145,7 +145,7 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
         <div>
           <label
             htmlFor="policy-rule-value"
-            className="block text-[11px] font-medium text-slate-600 mb-1"
+            className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1"
           >
             Target Value
           </label>
@@ -155,13 +155,13 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
             value={ruleValue}
             onChange={(e) => setRuleValue(e.target.value)}
             placeholder="9443 or .example.com"
-            className="w-full px-2.5 py-1.5 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-2.5 py-1.5 text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
           />
         </div>
         <div>
           <label
             htmlFor="policy-rule-action"
-            className="block text-[11px] font-medium text-slate-600 mb-1"
+            className="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1"
           >
             Action
           </label>
@@ -169,7 +169,7 @@ export function PolicyRulesPanel({ rules }: PolicyRulesPanelProps) {
             id="policy-rule-action"
             value={ruleSeverity}
             onChange={(e) => setRuleSeverity(e.target.value as "WARN" | "BLOCK")}
-            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
             <option value="WARN">WARN</option>
             <option value="BLOCK">BLOCK</option>

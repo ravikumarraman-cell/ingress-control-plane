@@ -268,35 +268,35 @@ export function AgentStudioBuilder({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5 space-y-5">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Cpu className="h-4 w-4 text-blue-700" />
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+            <Cpu className="h-4 w-4 text-blue-700 dark:text-sky-400" />
             On-the-Fly Agent Studio & Structured Output Chaining
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Define read-only custom agents (<span className="font-mono">sa-ingress-readonly</span>),
             hook them into any workflow stage, and wire{" "}
             <span className="font-mono">{"{{upstream.<agent>.<field>}}"}</span> structured data
             dependencies.
           </p>
         </div>
-        <div className="text-xs font-mono text-slate-500 tabular-nums shrink-0">
+        <div className="text-xs font-mono text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
           {blueprints.filter((b) => b.enabled).length} / {blueprints.length} blueprints enabled
         </div>
       </div>
 
       {feedbackError && (
-        <div className="p-3 rounded-md bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-2">
+        <div className="p-3 rounded-md bg-red-50 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/30 text-xs text-red-900 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
           <span>{feedbackError}</span>
         </div>
       )}
 
       {feedbackSuccess && (
-        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+        <div className="p-3 rounded-md bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-xs text-emerald-900 flex items-start gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-700 dark:text-emerald-400 shrink-0 mt-0.5" />
           <span>{feedbackSuccess}</span>
         </div>
       )}
@@ -305,7 +305,7 @@ export function AgentStudioBuilder({
         <div className="xl:col-span-7 space-y-5">
           {/* 1-Click Starter Presets */}
           <div className="flex flex-wrap items-center gap-2 pb-1">
-            <span className="text-[11px] font-medium text-slate-500">Quick Presets:</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Quick Presets:</span>
             {STARTER_PRESETS.map((preset) => (
               <button
                 key={preset.name}
@@ -322,19 +322,19 @@ export function AgentStudioBuilder({
                   setFeedbackError(null);
                   setFeedbackSuccess(`Loaded "${preset.label}" starter blueprint.`);
                 }}
-                className="px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                className="px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors"
               >
                 {preset.label}
               </button>
             ))}
           </div>
 
-          <div className="text-xs font-semibold text-slate-800">1. Identity & Hook Stage</div>
+          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">1. Identity & Hook Stage</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label
                 htmlFor="studio-agent-name"
-                className="block text-[11px] font-medium text-slate-700 mb-1"
+                className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1"
               >
                 Agent Name (PascalCase / Slug)
               </label>
@@ -344,14 +344,14 @@ export function AgentStudioBuilder({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. RateLimitCheckerAgent"
-                className="w-full px-3 py-1.5 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-3 py-1.5 text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
             </div>
 
             <div>
               <label
                 htmlFor="studio-hook-stage"
-                className="block text-[11px] font-medium text-slate-700 mb-1"
+                className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1"
               >
                 Hook Stage
               </label>
@@ -359,7 +359,7 @@ export function AgentStudioBuilder({
                 id="studio-hook-stage"
                 value={hookStage}
                 onChange={(e) => handleHookStageChange(e.target.value as WorkflowHookStage)}
-                className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
                 {STAGE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -373,7 +373,7 @@ export function AgentStudioBuilder({
           <div>
             <label
               htmlFor="studio-agent-role"
-              className="block text-[11px] font-medium text-slate-700 mb-1"
+              className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1"
             >
               Responsibility / Role Summary
             </label>
@@ -382,20 +382,20 @@ export function AgentStudioBuilder({
               type="text"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full px-3 py-1.5 text-xs border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
           </div>
 
           {/* Upstream Dependencies Selector */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-slate-700 flex items-center gap-1.5">
-                <GitBranch className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <GitBranch className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 Upstream Dependencies (<span className="font-mono">dependsOn</span>)
               </span>
-              <span className="text-[11px] text-slate-500">Filtered to same or earlier stage</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Filtered to same or earlier stage</span>
             </div>
-            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 border border-slate-200 rounded-md">
+            <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md">
               {eligibleUpstreamAgents.map((item) => {
                 const selected = dependsOn.includes(item.name);
                 return (
@@ -407,7 +407,7 @@ export function AgentStudioBuilder({
                     className={`px-2.5 py-1 text-[11px] font-mono rounded border transition-colors ${
                       selected
                         ? "bg-blue-700 border-blue-700 text-white"
-                        : "bg-white border-slate-200 text-slate-700 hover:border-slate-400"
+                        : "bg-white dark:bg-[#0F172A] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-400"
                     }`}
                   >
                     {selected ? "✓ " : "+ "}
@@ -420,8 +420,8 @@ export function AgentStudioBuilder({
 
           {availableUpstreamChips.length > 0 && (
             <div className="space-y-1.5">
-              <div className="text-[11px] font-medium text-slate-700 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-blue-700" />
+              <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-blue-700 dark:text-sky-400" />
                 Click an Upstream Output Field to Insert Token into Task Template
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -430,7 +430,7 @@ export function AgentStudioBuilder({
                     key={chip.token}
                     type="button"
                     onClick={() => insertTokenIntoTemplate(chip.token)}
-                    className="px-2 py-1 text-[11px] font-mono bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded transition-colors"
+                    className="px-2 py-1 text-[11px] font-mono bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 text-blue-800 border border-blue-200 dark:border-sky-500/30 rounded transition-colors"
                     title={`Insert ${chip.token} (${chip.fieldType})`}
                   >
                     {chip.agentName}.{chip.fieldKey}
@@ -441,11 +441,11 @@ export function AgentStudioBuilder({
           )}
 
           <div className="space-y-3">
-            <div className="text-xs font-semibold text-slate-800">2. Upstream Data & Prompt</div>
+            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">2. Upstream Data & Prompt</div>
             <div>
               <label
                 htmlFor="studio-task-template"
-                className="block text-[11px] font-medium text-slate-700 mb-1"
+                className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1"
               >
                 Task Template (Supports{" "}
                 <span className="font-mono">{"{{upstream.<agent>.<field>}}"}</span>)
@@ -456,7 +456,7 @@ export function AgentStudioBuilder({
                 rows={3}
                 value={taskTemplate}
                 onChange={(e) => setTaskTemplate(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-3 py-2 text-xs font-mono border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
             </div>
 
@@ -464,7 +464,7 @@ export function AgentStudioBuilder({
               <button
                 type="button"
                 onClick={() => setShowAdvancedPrompt((v) => !v)}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 hover:text-slate-900"
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 {showAdvancedPrompt ? (
                   <ChevronUp className="h-3.5 w-3.5" />
@@ -475,11 +475,11 @@ export function AgentStudioBuilder({
               </button>
 
               {showAdvancedPrompt && (
-                <div className="mt-2.5 p-3.5 bg-slate-50 border border-slate-200 rounded-md space-y-3">
+                <div className="mt-2.5 p-3.5 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md space-y-3">
                   <div>
                     <label
                       htmlFor="studio-system-prompt"
-                      className="block text-[11px] font-medium text-slate-700 mb-1"
+                      className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1"
                     >
                       System Prompt
                     </label>
@@ -488,17 +488,17 @@ export function AgentStudioBuilder({
                       rows={2}
                       value={systemPrompt}
                       onChange={(e) => setSystemPrompt(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="w-full px-3 py-2 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-700 dark:text-slate-300">
                     <label className="inline-flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={alwaysActive}
                         onChange={(e) => setAlwaysActive(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-700"
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-700 dark:text-sky-400"
                       />
                       <span>Always Active</span>
                     </label>
@@ -510,7 +510,7 @@ export function AgentStudioBuilder({
                           onChange={(e) =>
                             setEnvTrigger(e.target.value as "" | "dev" | "staging" | "prod")
                           }
-                          className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                          className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-[#0F172A]"
                         >
                           <option value="">Any environment</option>
                           <option value="dev">dev</option>
@@ -522,7 +522,7 @@ export function AgentStudioBuilder({
                           onChange={(e) =>
                             setExposureTrigger(e.target.value as "" | "internal" | "external")
                           }
-                          className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                          className="px-2 py-1 text-xs border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-[#0F172A]"
                         >
                           <option value="">Any exposure</option>
                           <option value="internal">internal</option>
@@ -536,7 +536,7 @@ export function AgentStudioBuilder({
                         type="checkbox"
                         checked={canForceApproval}
                         onChange={(e) => setCanForceApproval(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-700"
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-700 dark:text-sky-400"
                       />
                       <span>Can Force Human Approval Gate</span>
                     </label>
@@ -546,17 +546,17 @@ export function AgentStudioBuilder({
             </div>
           </div>
 
-          <div className="text-xs font-semibold text-slate-800 pt-1">
+          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 pt-1">
             3. Read-Only Tools & Typed Output
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-medium text-slate-700 flex items-center gap-1.5">
-                <Lock className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 Allowed Read-Only Tools (sa-ingress-readonly)
               </span>
-              <span className="text-[11px] text-slate-500">Write tools blocked by RBAC</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">Write tools blocked by RBAC</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {READ_ONLY_TOOL_CATALOG.map((tool) => {
@@ -566,21 +566,21 @@ export function AgentStudioBuilder({
                     key={tool.id}
                     className={`flex items-start gap-2 p-2.5 rounded-md border text-xs cursor-pointer transition-colors ${
                       checked
-                        ? "bg-slate-50 border-slate-400"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
+                        ? "bg-slate-50 dark:bg-[#090D16] border-slate-400"
+                        : "bg-white dark:bg-[#0F172A] border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleTool(tool.id)}
-                      className="mt-0.5 rounded border-slate-300 text-blue-700"
+                      className="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-blue-700 dark:text-sky-400"
                     />
                     <div className="min-w-0">
-                      <div className="font-mono font-medium text-slate-900 text-[11px]">
+                      <div className="font-mono font-medium text-slate-900 dark:text-slate-100 text-[11px]">
                         {tool.id}
                       </div>
-                      <div className="text-[11px] text-slate-500 leading-snug">
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
                         {tool.description}
                       </div>
                     </div>

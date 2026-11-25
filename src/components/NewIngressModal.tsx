@@ -221,20 +221,20 @@ export function NewIngressModal({
         }
       }}
     >
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h2 id="new-ingress-title" className="text-base font-semibold text-slate-900">
+            <h2 id="new-ingress-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
               New Ingress Change Request
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Dispatches IngressIntakeAgent, Phase A Read-Only Analysis, and Phase B Rollback Planning.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-500 hover:text-slate-900 rounded-md hover:bg-slate-100 transition-colors"
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-label="Close modal"
           >
             <X className="h-4 w-4" />
@@ -244,19 +244,19 @@ export function NewIngressModal({
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5">
           {/* Quick Scenario Presets */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
-            <span className="text-xs text-slate-500">Quick-fill template:</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Quick-fill template:</span>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => applyPreset("prod_external")}
-                className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+                className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
               >
                 Prod External API
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("staging_canary")}
-                className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
+                className="px-2.5 py-1 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-md transition-colors whitespace-nowrap"
               >
                 Staging Canary Service
               </button>
@@ -266,7 +266,7 @@ export function NewIngressModal({
           {/* Segmented Intake Mode & Execution Mode */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1.5">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                 Intake Mode
               </label>
               <SegmentedTabs
@@ -286,7 +286,7 @@ export function NewIngressModal({
             <div>
               <label
                 htmlFor="exec-mode-select"
-                className="block text-xs font-medium text-slate-700 mb-1.5"
+                className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5"
               >
                 Execution Target Phase
               </label>
@@ -294,7 +294,7 @@ export function NewIngressModal({
                 id="exec-mode-select"
                 value={executionMode}
                 onChange={(e) => setExecutionMode(e.target.value as ExecutionMode)}
-                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-3 py-2 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
                 <option value="advisory_v1">v1 — Read-Only Advisory (Diff Only)</option>
                 <option value="gitops_pr_v2">v2 — GitOps PR Execution + HITL Gate</option>
@@ -340,7 +340,7 @@ export function NewIngressModal({
               <div>
                 <label
                   htmlFor="ticket-ai"
-                  className="block text-xs font-medium text-slate-700 mb-1.5"
+                  className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5"
                 >
                   Ticket Reference (Optional)
                 </label>
@@ -349,13 +349,13 @@ export function NewIngressModal({
                   type="text"
                   value={ticketRef}
                   onChange={(e) => setTicketRef(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3 py-2 text-sm font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
               <div>
                 <label
                   htmlFor="nl-prompt"
-                  className="block text-xs font-medium text-slate-700 mb-1.5"
+                  className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5"
                 >
                   Natural-Language Networking Request
                 </label>
@@ -364,11 +364,11 @@ export function NewIngressModal({
                   rows={4}
                   value={naturalPrompt}
                   onChange={(e) => setNaturalPrompt(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                   placeholder="Describe app name, environment, hostname, path prefix, backend service/port, exposure, and TLS requirement..."
                   required
                 />
-                <p className="text-xs text-slate-500 mt-1.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
                   Parsed server-side via Gemini into a strict IngressRequest schema. Requests containing PEM private keys or API secrets are automatically rejected.
                 </p>
               </div>
@@ -377,7 +377,7 @@ export function NewIngressModal({
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="app-name" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="app-name" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     App Name
                   </label>
                   <input
@@ -385,12 +385,12 @@ export function NewIngressModal({
                     type="text"
                     value={appName}
                     onChange={(e) => setAppName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="env-select" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="env-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Environment
                   </label>
                   <select
@@ -399,7 +399,7 @@ export function NewIngressModal({
                     onChange={(e) =>
                       setEnvironment(e.target.value as "dev" | "staging" | "prod")
                     }
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                   >
                     <option value="dev">dev</option>
                     <option value="staging">staging</option>
@@ -407,7 +407,7 @@ export function NewIngressModal({
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="ticket-str" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="ticket-str" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Ticket Ref
                   </label>
                   <input
@@ -415,14 +415,14 @@ export function NewIngressModal({
                     type="text"
                     value={ticketRef}
                     onChange={(e) => setTicketRef(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="hostname" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="hostname" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Hostname (FQDN)
                   </label>
                   <input
@@ -430,12 +430,12 @@ export function NewIngressModal({
                     type="text"
                     value={hostname}
                     onChange={(e) => setHostname(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="path-prefix" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="path-prefix" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Path Prefix
                   </label>
                   <input
@@ -443,7 +443,7 @@ export function NewIngressModal({
                     type="text"
                     value={pathPrefix}
                     onChange={(e) => setPathPrefix(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
@@ -451,7 +451,7 @@ export function NewIngressModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="sm:col-span-2">
-                  <label htmlFor="backend-svc" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="backend-svc" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Backend Service
                   </label>
                   <input
@@ -459,12 +459,12 @@ export function NewIngressModal({
                     type="text"
                     value={backendService}
                     onChange={(e) => setBackendService(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="backend-port" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="backend-port" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Port
                   </label>
                   <input
@@ -474,19 +474,19 @@ export function NewIngressModal({
                     max={65535}
                     value={backendPort}
                     onChange={(e) => setBackendPort(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="exposure" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="exposure" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Exposure
                   </label>
                   <select
                     id="exposure"
                     value={exposure}
                     onChange={(e) => setExposure(e.target.value as "internal" | "external")}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                   >
                     <option value="external">external</option>
                     <option value="internal">internal</option>
@@ -496,7 +496,7 @@ export function NewIngressModal({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="tls-profile" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="tls-profile" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     TLS Profile
                   </label>
                   <select
@@ -507,7 +507,7 @@ export function NewIngressModal({
                         e.target.value as "tls_1_3_strict" | "tls_1_2_compat" | "mtls_internal"
                       )
                     }
-                    className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                   >
                     <option value="tls_1_3_strict">tls_1_3_strict</option>
                     <option value="tls_1_2_compat">tls_1_2_compat</option>
@@ -515,7 +515,7 @@ export function NewIngressModal({
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="justification" className="block text-xs font-medium text-slate-700 mb-1">
+                  <label htmlFor="justification" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Change Justification
                   </label>
                   <input
@@ -523,7 +523,7 @@ export function NewIngressModal({
                     type="text"
                     value={justification}
                     onChange={(e) => setJustification(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-3 py-2 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600"
                     required
                   />
                 </div>
@@ -532,27 +532,27 @@ export function NewIngressModal({
           )}
 
           {/* Flexible Agent Pipeline & Governance Options */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className="w-full px-4 py-2.5 bg-slate-50 flex items-center justify-between text-xs font-semibold text-slate-800 hover:bg-slate-100 transition-colors"
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-[#090D16] flex items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <span>Flexible Agent Pipeline & Governance Settings</span>
               {showAdvanced ? (
-                <ChevronUp className="h-4 w-4 text-slate-500" />
+                <ChevronUp className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               ) : (
-                <ChevronDown className="h-4 w-4 text-slate-500" />
+                <ChevronDown className="h-4 w-4 text-slate-500 dark:text-slate-400" />
               )}
             </button>
 
             {showAdvanced && (
-              <div className="p-4 space-y-4 bg-white border-t border-slate-200 text-xs">
+              <div className="p-4 space-y-4 bg-white dark:bg-[#0F172A] border-t border-slate-200 dark:border-slate-800 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label
                       htmlFor="hitl-policy-select"
-                      className="block font-medium text-slate-700 mb-1"
+                      className="block font-medium text-slate-700 dark:text-slate-300 mb-1"
                     >
                       Human Approval (HITL) Policy
                     </label>
@@ -560,7 +560,7 @@ export function NewIngressModal({
                       id="hitl-policy-select"
                       value={hitlPolicy}
                       onChange={(e) => setHitlPolicy(e.target.value as HitlPolicyMode)}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-900"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-slate-100"
                     >
                       <option value="always">Always Pause for Human Sign-Off</option>
                       <option value="prod_or_high">Pause on Prod or HIGH Risk Only</option>
@@ -571,7 +571,7 @@ export function NewIngressModal({
                   <div>
                     <label
                       htmlFor="canary-preset-select"
-                      className="block font-medium text-slate-700 mb-1"
+                      className="block font-medium text-slate-700 dark:text-slate-300 mb-1"
                     >
                       Canary Rollout Progression (v3)
                     </label>
@@ -581,7 +581,7 @@ export function NewIngressModal({
                       onChange={(e) =>
                         setCanaryPreset(e.target.value as "10_50_100" | "25_100" | "100")
                       }
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-md text-slate-900 font-mono"
+                      className="w-full px-2.5 py-1.5 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-slate-100 font-mono"
                     >
                       <option value="10_50_100">Staged: 10% -&gt; 50% -&gt; 100%</option>
                       <option value="25_100">Two-Step: 25% -&gt; 100%</option>
@@ -591,25 +591,25 @@ export function NewIngressModal({
                 </div>
 
                 <div>
-                  <div className="font-medium text-slate-700 mb-1.5">
+                  <div className="font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                     Optional Specialist Phase A Agents
                   </div>
                   <div className="flex flex-wrap gap-4">
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={enableCostAgent}
                         onChange={(e) => setEnableCostAgent(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-700"
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-700 dark:text-sky-400"
                       />
                       <span>CostEstimationAgent</span>
                     </label>
-                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
                       <input
                         type="checkbox"
                         checked={enableSecPostureAgent}
                         onChange={(e) => setEnableSecPostureAgent(e.target.checked)}
-                        className="rounded border-slate-300 text-blue-700"
+                        className="rounded border-slate-300 dark:border-slate-700 text-blue-700 dark:text-sky-400"
                       />
                       <span>SecurityPostureAgent</span>
                     </label>
@@ -619,7 +619,7 @@ export function NewIngressModal({
                 <div>
                   <label
                     htmlFor="custom-agent-guidance"
-                    className="block font-medium text-slate-700 mb-1"
+                    className="block font-medium text-slate-700 dark:text-slate-300 mb-1"
                   >
                     Custom Guidance for Supervisor & Planning Agents
                   </label>
@@ -629,12 +629,12 @@ export function NewIngressModal({
                     value={customInstructions}
                     onChange={(e) => setCustomInstructions(e.target.value)}
                     placeholder="e.g., Prioritize low-latency regional edge failover and strict HSTS headers"
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-md"
+                    className="w-full px-3 py-1.5 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md"
                   />
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <div className="font-medium text-slate-700">
+                  <div className="font-medium text-slate-700 dark:text-slate-300">
                     Add Custom Specialist Agent (Optional)
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
@@ -643,14 +643,14 @@ export function NewIngressModal({
                       value={newAgentName}
                       onChange={(e) => setNewAgentName(e.target.value)}
                       placeholder="AgentName"
-                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 rounded-md font-mono"
+                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 rounded-md font-mono"
                     />
                     <input
                       type="text"
                       value={newAgentInstruction}
                       onChange={(e) => setNewAgentInstruction(e.target.value)}
                       placeholder="What should this agent audit?"
-                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 rounded-md"
+                      className="sm:col-span-2 px-2.5 py-1.5 border border-slate-200 dark:border-slate-800 rounded-md"
                     />
                     <button
                       type="button"
@@ -667,14 +667,14 @@ export function NewIngressModal({
                       {customAgents.map((ca, i) => (
                         <div
                           key={`${ca.agentName}-${i}`}
-                          className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded"
+                          className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded"
                         >
                           <div className="truncate">
-                            <span className="font-mono font-semibold text-slate-900">
+                            <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                               {ca.agentName}
                             </span>
                             <span className="text-slate-400 mx-1.5">·</span>
-                            <span className="text-slate-600">{ca.instruction}</span>
+                            <span className="text-slate-600 dark:text-slate-400">{ca.instruction}</span>
                           </div>
                           <button
                             type="button"
@@ -696,17 +696,17 @@ export function NewIngressModal({
           </div>
 
           {mutation.isError && (
-            <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-md text-xs text-red-800">
+            <div className="flex items-start gap-2.5 p-3 bg-red-50 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/30 rounded-md text-xs text-red-800">
               <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
               <span>{(mutation.error as Error).message}</span>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
             >
               Cancel
             </button>

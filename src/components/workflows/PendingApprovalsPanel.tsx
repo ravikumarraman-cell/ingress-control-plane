@@ -184,14 +184,14 @@ export function PendingApprovalsPanel({
     return (
       <section
         aria-label="Pending Approvals"
-        className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+        className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden"
       >
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <div className="h-5 w-44 bg-slate-100 rounded animate-pulse" />
-          <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="h-5 w-44 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+          <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
         </div>
         <div className="p-5 space-y-4">
-          <div className="h-32 bg-slate-50 border border-slate-200 rounded-md animate-pulse" />
+          <div className="h-32 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md animate-pulse" />
         </div>
       </section>
     );
@@ -200,10 +200,10 @@ export function PendingApprovalsPanel({
   return (
     <section
       aria-label="Pending Approvals"
-      className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+      className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden"
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
             <ShieldAlert
@@ -211,29 +211,29 @@ export function PendingApprovalsPanel({
                 pendingWorkflows.length > 0 ? "text-amber-600" : "text-slate-400"
               }`}
             />
-            <h2 className="text-base font-semibold text-slate-900">Pending Approvals</h2>
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Pending Approvals</h2>
             <span
               className={`text-xs font-mono font-semibold tabular-nums ${
-                pendingWorkflows.length > 0 ? "text-amber-700" : "text-slate-500"
+                pendingWorkflows.length > 0 ? "text-amber-700" : "text-slate-500 dark:text-slate-400"
               }`}
             >
               {pendingWorkflows.length} awaiting HITL release
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Inspect requested ingress configuration diffs, verify cluster ETag lock, and sign
             four-eyes Human-in-the-Loop authorization.
           </p>
         </div>
 
         <div className="flex items-center gap-4 shrink-0 flex-wrap">
-          <div className="text-xs text-slate-500 font-mono truncate max-w-[260px]">
-            Signer: <span className="text-slate-800 font-medium">{activeOperator.operatorId}</span>
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate max-w-[260px]">
+            Signer: <span className="text-slate-800 dark:text-slate-200 font-medium">{activeOperator.operatorId}</span>
           </div>
           {showInboxLink && (
             <Link
               to="/approvals"
-              className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap"
             >
               Approval Inbox
               <ArrowRight className="h-3.5 w-3.5" />
@@ -243,7 +243,7 @@ export function PendingApprovalsPanel({
       </div>
 
       {recentOutcome && (
-        <div className="px-5 py-2.5 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between gap-3 text-xs text-emerald-900">
+        <div className="px-5 py-2.5 bg-emerald-50 dark:bg-emerald-500/10 border-b border-emerald-200 dark:border-emerald-500/30 flex items-center justify-between gap-3 text-xs text-emerald-900">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{recentOutcome}</span>
@@ -251,7 +251,7 @@ export function PendingApprovalsPanel({
           <button
             type="button"
             onClick={() => setRecentOutcome(null)}
-            className="text-emerald-700 hover:underline font-medium whitespace-nowrap"
+            className="text-emerald-700 dark:text-emerald-400 hover:underline font-medium whitespace-nowrap"
           >
             Dismiss
           </button>
@@ -264,7 +264,7 @@ export function PendingApprovalsPanel({
           description="All sealed ChangePlans have been decided. New production or high-blast-radius ingress requests will pause here for HITL sign-off."
         />
       ) : (
-        <div className="divide-y divide-slate-200">
+        <div className="divide-y divide-slate-200 dark:divide-slate-800">
           {pendingWorkflows.map((wf) => {
             const req = wf.ingressRequest;
             const liveRoute =
@@ -311,11 +311,11 @@ export function PendingApprovalsPanel({
                       <Link
                         to="/workflows/$workflowId"
                         params={{ workflowId: wf.workflowId }}
-                        className="text-sm font-semibold text-slate-900 hover:text-blue-700 hover:underline"
+                        className="text-sm font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-700 dark:hover:text-sky-400 hover:underline"
                       >
                         {wf.appName}
                       </Link>
-                      <span className="text-xs font-mono text-slate-600">
+                      <span className="text-xs font-mono text-slate-600 dark:text-slate-400">
                         {req.hostname}
                         {req.pathPrefix}
                       </span>
@@ -334,25 +334,25 @@ export function PendingApprovalsPanel({
                       />
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 tabular-nums">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                       <span>
-                        Env: <span className="font-mono text-slate-700">{wf.environment}</span>
+                        Env: <span className="font-mono text-slate-700 dark:text-slate-300">{wf.environment}</span>
                       </span>
                       <span aria-hidden="true">·</span>
                       <span>
-                        Mode: <span className="font-mono text-slate-700">{wf.executionMode}</span>
+                        Mode: <span className="font-mono text-slate-700 dark:text-slate-300">{wf.executionMode}</span>
                       </span>
                       {wf.ticketRef && (
                         <>
                           <span aria-hidden="true">·</span>
                           <span>
-                            Ticket: <span className="font-mono text-slate-700">{wf.ticketRef}</span>
+                            Ticket: <span className="font-mono text-slate-700 dark:text-slate-300">{wf.ticketRef}</span>
                           </span>
                         </>
                       )}
                       <span aria-hidden="true">·</span>
                       <span>
-                        Requester: <span className="font-mono text-slate-700">{wf.requesterId}</span>
+                        Requester: <span className="font-mono text-slate-700 dark:text-slate-300">{wf.requesterId}</span>
                       </span>
                       <span aria-hidden="true">·</span>
                       <span className="font-mono">{formatTimeHMS(wf.createdAt)}</span>
@@ -369,14 +369,14 @@ export function PendingApprovalsPanel({
                             [wf.workflowId]: !prev[wf.workflowId],
                           }))
                         }
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
                       >
-                        <FileCode2 className="h-3.5 w-3.5 text-slate-500" />
+                        <FileCode2 className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                         <span>
                           Config Diff ({diffs.length})
                         </span>
-                        <span className="font-mono text-emerald-700 tabular-nums">+{totalAdded}</span>
-                        <span className="font-mono text-red-700 tabular-nums">-{totalRemoved}</span>
+                        <span className="font-mono text-emerald-700 dark:text-emerald-400 tabular-nums">+{totalAdded}</span>
+                        <span className="font-mono text-red-700 dark:text-rose-400 tabular-nums">-{totalRemoved}</span>
                         {isExpanded ? (
                           <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
                         ) : (
@@ -388,7 +388,7 @@ export function PendingApprovalsPanel({
                     <Link
                       to="/workflows/$workflowId"
                       params={{ workflowId: wf.workflowId }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
                     >
                       Inspect Workflow
                       <ArrowRight className="h-3 w-3" />
@@ -397,16 +397,16 @@ export function PendingApprovalsPanel({
                 </div>
 
                 {/* Row 2: Requested Ingress Configuration Changes Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-slate-200 rounded-md divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/50">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-slate-200 dark:border-slate-800 rounded-md divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 bg-slate-50/50 dark:bg-[#090D16]">
                   <div className="p-3 space-y-1 min-w-0">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       {liveRoute ? "Backend Target (Current → Requested)" : "New Backend Target"}
                     </div>
-                    <div className="text-xs font-mono text-slate-900 break-all tabular-nums">
+                    <div className="text-xs font-mono text-slate-900 dark:text-slate-100 break-all tabular-nums">
                       {liveRoute ? (
                         backendChanged ? (
                           <>
-                            <span className="text-slate-500 line-through">
+                            <span className="text-slate-500 dark:text-slate-400 line-through">
                               {liveRoute.backendService}:{liveRoute.backendPort}
                             </span>{" "}
                             <span aria-hidden="true" className="text-slate-400">
@@ -430,13 +430,13 @@ export function PendingApprovalsPanel({
                   </div>
 
                   <div className="p-3 space-y-1 min-w-0">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       TLS Profile & Exposure
                     </div>
-                    <div className="text-xs font-mono text-slate-900 break-words">
+                    <div className="text-xs font-mono text-slate-900 dark:text-slate-100 break-words">
                       {liveRoute && tlsChanged ? (
                         <>
-                          <span className="text-slate-500 line-through">{liveRoute.tlsProfile}</span>
+                          <span className="text-slate-500 dark:text-slate-400 line-through">{liveRoute.tlsProfile}</span>
                           {" → "}
                           <span className="font-semibold text-blue-800">{req.tlsProfile}</span>
                         </>
@@ -455,14 +455,14 @@ export function PendingApprovalsPanel({
                   </div>
 
                   <div className="p-3 space-y-1 min-w-0">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       Rollout & Rollback Plan
                     </div>
-                    <div className="text-xs font-mono text-slate-900 tabular-nums">
+                    <div className="text-xs font-mono text-slate-900 dark:text-slate-100 tabular-nums">
                       {liveRoute ? `${liveRoute.canaryWeight}% → ` : ""}
-                      <span className="font-semibold text-slate-900">{canaryPreview}</span>
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">{canaryPreview}</span>
                       {plan?.rollbackPlan && (
-                        <span className="text-slate-500">
+                        <span className="text-slate-500 dark:text-slate-400">
                           {" · "}
                           {plan.rollbackPlan.strategy} (≤{plan.rollbackPlan.maxRollbackSeconds}s)
                         </span>
@@ -471,21 +471,21 @@ export function PendingApprovalsPanel({
                   </div>
 
                   <div className="p-3 space-y-1 min-w-0">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                       Policy Checks & Plan Lock
                     </div>
-                    <div className="text-xs font-mono text-slate-900 tabular-nums">
+                    <div className="text-xs font-mono text-slate-900 dark:text-slate-100 tabular-nums">
                       <span
                         className={
                           passedChecks === policyChecks.length && policyChecks.length > 0
-                            ? "text-emerald-700 font-semibold"
+                            ? "text-emerald-700 dark:text-emerald-400 font-semibold"
                             : "text-amber-700 font-semibold"
                         }
                       >
                         {passedChecks}/{policyChecks.length} checks passed
                       </span>
                       {" · "}
-                      <span title={targetEtag} className="text-slate-500">
+                      <span title={targetEtag} className="text-slate-500 dark:text-slate-400">
                         {shortHash(targetEtag, 12)}
                       </span>
                     </div>
@@ -493,8 +493,8 @@ export function PendingApprovalsPanel({
                 </div>
 
                 {/* Requester Change Summary */}
-                <div className="text-xs text-slate-600 leading-relaxed">
-                  <span className="font-medium text-slate-800">Change Justification: </span>
+                <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  <span className="font-medium text-slate-800 dark:text-slate-200">Change Justification: </span>
                   {req.rawJustification}
                 </div>
 
@@ -520,7 +520,7 @@ export function PendingApprovalsPanel({
 
                 {/* Four-Eyes Separation Warning */}
                 {isSelfApprovalBlocked && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900">
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md text-xs text-amber-900 dark:text-amber-200">
                     <Lock className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                     <span>
                       <span className="font-semibold">Four-Eyes Separation Enforced: </span>
@@ -563,11 +563,11 @@ export function PendingApprovalsPanel({
                         }}
                         placeholder="Enter HITL decision rationale (min 12 chars) to authorize or reject directly..."
                         disabled={isRowSubmitting}
-                        className="w-full px-3 py-2 pr-20 text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-slate-50"
+                        className="w-full px-3 py-2 pr-20 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-slate-50 dark:bg-[#090D16]"
                       />
                       <span
                         className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono tabular-nums pointer-events-none ${
-                          trimmedLen >= MIN_RATIONALE_LEN ? "text-emerald-700" : "text-slate-400"
+                          trimmedLen >= MIN_RATIONALE_LEN ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400"
                         }`}
                       >
                         {trimmedLen}/{MIN_RATIONALE_LEN}+
@@ -580,7 +580,7 @@ export function PendingApprovalsPanel({
                       type="button"
                       disabled={isRowSubmitting}
                       onClick={() => handleQuickDecision(wf, "REJECT")}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-700 bg-white border border-red-200 rounded-md hover:bg-red-50 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-red-700 dark:text-rose-400 bg-white dark:bg-[#0F172A] border border-red-200 dark:border-rose-500/30 rounded-md hover:bg-red-50 dark:bg-rose-500/10 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
                     >
                       <XCircle className="h-3.5 w-3.5 shrink-0" />
                       {isRowSubmitting && submittingAction === "REJECT" ? "Rejecting..." : "Reject"}
@@ -610,7 +610,7 @@ export function PendingApprovalsPanel({
                         });
                         setModalState({ workflow: wf, initialAction: "APPROVE" });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-50 transition-colors whitespace-nowrap shrink-0"
                     >
                       Review Diff & Sign
                     </button>
@@ -618,14 +618,14 @@ export function PendingApprovalsPanel({
                 </div>
 
                 {validationErrors[wf.workflowId] && (
-                  <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900">
+                  <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-md text-xs text-amber-900 dark:text-amber-200">
                     <AlertCircle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                     <span>{validationErrors[wf.workflowId]}</span>
                   </div>
                 )}
 
                 {actionErrors[wf.workflowId] && (
-                  <div className="flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-md text-xs text-red-800">
+                  <div className="flex items-start gap-2 px-3 py-2 bg-red-50 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/30 rounded-md text-xs text-red-800">
                     <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
                     <span>{actionErrors[wf.workflowId]}</span>
                   </div>

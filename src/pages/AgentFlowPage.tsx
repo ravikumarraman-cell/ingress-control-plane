@@ -133,7 +133,7 @@ export function AgentFlowPage() {
               type="button"
               onClick={() => driftMutation.mutate()}
               disabled={driftMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${driftMutation.isPending ? "animate-spin" : ""}`} />
               Simulate Infra Drift
@@ -142,11 +142,11 @@ export function AgentFlowPage() {
         }
       />
 
-      <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0 flex-1">
           <label
             htmlFor="agent-flow-workflow-select"
-            className="text-xs font-medium text-slate-700 whitespace-nowrap"
+            className="text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap"
           >
             Inspect Live Workflow:
           </label>
@@ -154,7 +154,7 @@ export function AgentFlowPage() {
             id="agent-flow-workflow-select"
             value={activeWorkflow?.workflowId ?? ""}
             onChange={(e) => setSelectedWorkflowId(e.target.value)}
-            className="w-full sm:max-w-md px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full sm:max-w-md px-3 py-1.5 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-600"
           >
             {workflows.map((wf) => (
               <option key={wf.workflowId} value={wf.workflowId}>
@@ -168,10 +168,10 @@ export function AgentFlowPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-4 shrink-0">
-          <div className="flex items-center gap-1.5 text-xs text-slate-600">
-            <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
             <span>Live ETag:</span>
-            <code className="font-mono text-slate-900 tabular-nums">
+            <code className="font-mono text-slate-900 dark:text-slate-100 tabular-nums">
               {workflowsQuery.data?.liveStateEtag
                 ? shortHash(workflowsQuery.data.liveStateEtag, 16)
                 : "loading..."}
@@ -182,7 +182,7 @@ export function AgentFlowPage() {
             <Link
               to="/workflows/$workflowId"
               params={{ workflowId: activeWorkflow.workflowId }}
-              className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap"
             >
               Inspect Diffs & Approve
               <ArrowRight className="h-3.5 w-3.5" />
@@ -209,7 +209,7 @@ export function AgentFlowPage() {
         />
 
         {activeWorkflow && (
-          <div className="text-xs text-slate-500 font-mono tabular-nums">
+          <div className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
             {activeWorkflow.dynamicTaskAssignments?.length
               ? `${activeWorkflow.dynamicTaskAssignments.length} dynamic DAG task(s) hooked`
               : "Standard 9-agent governed pipeline"}
@@ -219,7 +219,7 @@ export function AgentFlowPage() {
 
       {workspaceTab === "topology" &&
         (workflowsQuery.isLoading ? (
-          <div className="h-96 bg-white border border-slate-200 rounded-lg animate-pulse" />
+          <div className="h-96 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg animate-pulse" />
         ) : (
           <LiveAgentFlowDiagram
             workflow={activeWorkflow}

@@ -20,12 +20,12 @@ export function PageHeader({
       <div className="min-w-0">
         {backLink && <div className="mb-2">{backLink}</div>}
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-950 text-balance">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-950 dark:text-slate-50 text-balance">
             {title}
           </h1>
           {badge}
         </div>
-        {subtitle && <div className="text-sm text-slate-600 mt-1">{subtitle}</div>}
+        {subtitle && <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">{subtitle}</div>}
       </div>
       {actions && (
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">{actions}</div>

@@ -207,16 +207,16 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
   return (
     <div className="space-y-6">
       {/* Executive Pitch Banner + 4 Impact Metrics */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-200 dark:border-slate-800">
           <div className="space-y-2 max-w-3xl">
-            <div className="text-xs font-mono font-semibold text-blue-700 uppercase tracking-wide">
+            <div className="text-xs font-mono font-semibold text-blue-700 dark:text-sky-400 uppercase tracking-wide">
               Executive Architecture Brief · Platform & Security Leadership
             </div>
-            <h2 className="text-lg font-semibold text-slate-950 tracking-tight">
+            <h2 className="text-lg font-semibold text-slate-950 dark:text-slate-50 tracking-tight">
               Self-Service Speed for Developers. Zero-Compromise Safety for Production Ingress.
             </h2>
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
               This control plane turns slow, manual Ingress ticket queues into a governed self-service
               pipeline. Read-only AI specialists validate policies, costs, and collision risks in seconds;
               human approvers sign with four-eyes RBAC; and live customer traffic never passes through an LLM.
@@ -233,34 +233,34 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
             </Link>
             <Link
               to="/workflows"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap"
             >
               View Live Workflows
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800 bg-slate-50/50 dark:bg-[#090D16]">
           {IMPACT_METRICS.map((m) => (
             <div key={m.label} className="p-5 space-y-1">
-              <div className="text-xs font-medium text-slate-500">{m.label}</div>
-              <div className="text-xl font-semibold text-slate-950 font-mono tabular-nums">
+              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">{m.label}</div>
+              <div className="text-xl font-semibold text-slate-950 dark:text-slate-50 font-mono tabular-nums">
                 {m.value}
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">{m.detail}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{m.detail}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Before vs Today Comparison Table */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Why Traditional Ingress Stalls Adoption — And How This Architecture Solves It
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Removing manual friction for app teams while raising safety assurances for NetOps and SecOps.
             </p>
           </div>
@@ -269,28 +269,28 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-600 w-48">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#090D16]">
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 w-48">
                   Capability
                 </th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-slate-600">
+                <th className="px-5 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
                   Before (Manual Ticket Model)
                 </th>
-                <th className="px-5 py-2.5 text-xs font-semibold text-emerald-800">
+                <th className="px-5 py-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
                   Today (Governed Multi-Agent Control Plane)
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-xs">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
               {BEFORE_AFTER_ROWS.map((row) => (
                 <tr key={row.dimension}>
-                  <td className="px-5 py-3.5 font-semibold text-slate-900 align-top whitespace-nowrap">
+                  <td className="px-5 py-3.5 font-semibold text-slate-900 dark:text-slate-100 align-top whitespace-nowrap">
                     {row.dimension}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-600 align-top leading-relaxed">
+                  <td className="px-5 py-3.5 text-slate-600 dark:text-slate-400 align-top leading-relaxed">
                     {row.before}
                   </td>
-                  <td className="px-5 py-3.5 text-slate-900 font-medium align-top leading-relaxed bg-emerald-50/30">
+                  <td className="px-5 py-3.5 text-slate-900 dark:text-slate-100 font-medium align-top leading-relaxed bg-emerald-50/30 dark:bg-emerald-500/10">
                     {row.after}
                   </td>
                 </tr>
@@ -301,16 +301,16 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
       </div>
 
       {/* How On-the-Fly Agents Work + Specialist Catalog */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 pb-4">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-6 space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-blue-700 shrink-0" />
-              <h3 className="text-sm font-semibold text-slate-900">
+              <Layers className="h-4 w-4 text-blue-700 dark:text-sky-400 shrink-0" />
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 How On-the-Fly Agents Multiply Team Agility Without Engineering Bottlenecks
               </h3>
             </div>
-            <p className="text-xs text-slate-600 max-w-3xl">
+            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-3xl">
               Instead of writing custom backend code for every new governance rule, leaders create
               specialist agents directly in the UI. Each dynamic agent is automatically sandboxed to
               read-only tools and validated for cycle-free execution.
@@ -318,7 +318,7 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
           </div>
           <Link
             to="/agents"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:underline whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap shrink-0"
           >
             Try Agent Studio
             <ArrowRight className="h-3.5 w-3.5" />
@@ -327,32 +327,32 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
 
         {/* 3-Step On-the-Fly Agent Lifecycle */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 border border-slate-200 rounded-md bg-slate-50/60 space-y-1.5">
-            <div className="text-xs font-mono font-semibold text-blue-700">Step 1 · Author</div>
-            <div className="text-xs font-semibold text-slate-900">
+          <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-md bg-slate-50/60 dark:bg-[#090D16] space-y-1.5">
+            <div className="text-xs font-mono font-semibold text-blue-700 dark:text-sky-400">Step 1 · Author</div>
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
               Define Specialist in Seconds
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Give the agent a domain role, read-only tools (<code className="font-mono">get_lb_config</code>,{" "}
               <code className="font-mono">evaluate_opa_policies</code>), and a typed JSON output contract.
             </p>
           </div>
-          <div className="p-4 border border-slate-200 rounded-md bg-slate-50/60 space-y-1.5">
-            <div className="text-xs font-mono font-semibold text-blue-700">Step 2 · Chain</div>
-            <div className="text-xs font-semibold text-slate-900">
+          <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-md bg-slate-50/60 dark:bg-[#090D16] space-y-1.5">
+            <div className="text-xs font-mono font-semibold text-blue-700 dark:text-sky-400">Step 2 · Chain</div>
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
               Wire Typed Context (<code className="font-mono">{"{{Agent.field}}"}</code>)
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Plug into any pipeline stage (<code className="font-mono">Pre-Intake</code> to{" "}
               <code className="font-mono">Post-Verify</code>). The DAG engine blocks circular dependencies automatically.
             </p>
           </div>
-          <div className="p-4 border border-slate-200 rounded-md bg-slate-50/60 space-y-1.5">
-            <div className="text-xs font-mono font-semibold text-blue-700">Step 3 · Enforce</div>
-            <div className="text-xs font-semibold text-slate-900">
+          <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-md bg-slate-50/60 dark:bg-[#090D16] space-y-1.5">
+            <div className="text-xs font-mono font-semibold text-blue-700 dark:text-sky-400">Step 3 · Enforce</div>
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">
               Safe Veto & Cryptographic Audit
             </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
               Agents can elevate Blast Radius or pause deployment for human review—with every output
               hashed into the append-only audit log.
             </p>
@@ -366,25 +366,25 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
             return (
               <div
                 key={item.agentName}
-                className="p-4 border border-slate-200 rounded-md bg-white space-y-2"
+                className="p-4 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] space-y-2"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="h-7 w-7 rounded-md bg-blue-50 border border-blue-200/70 text-blue-700 flex items-center justify-center shrink-0">
+                    <span className="h-7 w-7 rounded-md bg-blue-50 dark:bg-sky-500/10 border border-blue-200/70 dark:border-sky-500/30 text-blue-700 dark:text-sky-400 flex items-center justify-center shrink-0">
                       <Icon className="h-3.5 w-3.5" />
                     </span>
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-slate-900 truncate">
+                      <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
                         {item.domain}
                       </div>
-                      <div className="text-[11px] font-mono text-slate-500 truncate">
+                      <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">
                         {item.agentName} · {item.stage}
                       </div>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{item.summary}</p>
-                <div className="pt-1.5 border-t border-slate-100 text-xs font-medium text-emerald-800">
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{item.summary}</p>
+                <div className="pt-1.5 border-t border-slate-100 text-xs font-medium text-emerald-800 dark:text-emerald-300">
                   Leadership Value: {item.impact}
                 </div>
               </div>
@@ -394,10 +394,10 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
       </div>
 
       {/* 4 Adoption Pillars */}
-      <div className="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
-          <GitBranch className="h-4 w-4 text-blue-700 shrink-0" />
-          <h3 className="text-sm font-semibold text-slate-900">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-6 space-y-4">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <GitBranch className="h-4 w-4 text-blue-700 dark:text-sky-400 shrink-0" />
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             How This Architecture Accelerates Organization-Wide Ingress Adoption
           </h3>
         </div>
@@ -407,13 +407,13 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
             return (
               <div
                 key={pillar.title}
-                className="p-4 border border-slate-200 rounded-md bg-slate-50/40 space-y-1.5"
+                className="p-4 border border-slate-200 dark:border-slate-800 rounded-md bg-slate-50/40 dark:bg-[#090D16] space-y-1.5"
               >
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
-                  <Icon className="h-4 w-4 text-blue-700 shrink-0" />
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-900 dark:text-slate-100">
+                  <Icon className="h-4 w-4 text-blue-700 dark:text-sky-400 shrink-0" />
                   <span>{pillar.title}</span>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">{pillar.description}</p>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{pillar.description}</p>
               </div>
             );
           })}
@@ -421,32 +421,32 @@ export function LeadershipOverviewSection({ adoptionMermaid }: LeadershipOvervie
       </div>
 
       {/* Top 10 Adoption Blockers Addressed */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200">
-          <h3 className="text-sm font-semibold text-slate-900">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             Top 10 Ingress Adoption Blockers — Solved by Live Control-Plane Agents
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Every blocker is addressed before ticket submission, during multi-step setup, and throughout post-apply rollout with strict security guardrails.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-600">
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#090D16] text-xs font-semibold text-slate-600 dark:text-slate-400">
                 <th className="px-4 py-2.5 w-10">#</th>
                 <th className="px-4 py-2.5 w-56">Adoption Blocker</th>
                 <th className="px-4 py-2.5">Agent Solution</th>
                 <th className="px-4 py-2.5 w-60">Security & Governance Guardrail</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-xs">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
               {TOP_10_BLOCKER_MATRIX.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-4 py-2.5 font-mono text-slate-500 tabular-nums">{row.id}</td>
-                  <td className="px-4 py-2.5 font-semibold text-slate-900">{row.blocker}</td>
-                  <td className="px-4 py-2.5 text-slate-700 leading-relaxed">{row.agentSolution}</td>
-                  <td className="px-4 py-2.5 font-mono text-[11px] text-slate-600">{row.guardrail}</td>
+                  <td className="px-4 py-2.5 font-mono text-slate-500 dark:text-slate-400 tabular-nums">{row.id}</td>
+                  <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-slate-100">{row.blocker}</td>
+                  <td className="px-4 py-2.5 text-slate-700 dark:text-slate-300 leading-relaxed">{row.agentSolution}</td>
+                  <td className="px-4 py-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">{row.guardrail}</td>
                 </tr>
               ))}
             </tbody>

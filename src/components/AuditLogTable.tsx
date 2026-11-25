@@ -51,7 +51,7 @@ export function AuditLogTable({
                 type="button"
                 aria-label={isExpanded ? `Collapse event #${seqNo}` : `Expand event #${seqNo}`}
                 onClick={() => setExpandedSeq(isExpanded ? null : seqNo)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors"
+                className="p-1 text-slate-400 hover:text-slate-700 dark:text-slate-300 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 {isExpanded ? (
                   <ChevronDown className="h-3.5 w-3.5" />
@@ -65,7 +65,7 @@ export function AuditLogTable({
         columnHelper.accessor("seqNo", {
           header: "Seq",
           cell: (info) => (
-            <span className="font-mono text-xs tabular-nums text-slate-600 whitespace-nowrap">
+            <span className="font-mono text-xs tabular-nums text-slate-600 dark:text-slate-400 whitespace-nowrap">
               #{info.getValue()}
             </span>
           ),
@@ -73,7 +73,7 @@ export function AuditLogTable({
         columnHelper.accessor("eventType", {
           header: "Event Type",
           cell: (info) => (
-            <span className="font-mono text-xs font-semibold text-slate-900 whitespace-nowrap">
+            <span className="font-mono text-xs font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
               {info.getValue()}
             </span>
           ),
@@ -82,11 +82,11 @@ export function AuditLogTable({
           header: "Actor",
           cell: (info) => (
             <div className="text-xs whitespace-nowrap">
-              <span className="text-slate-900 font-medium">{info.getValue()}</span>
+              <span className="text-slate-900 dark:text-slate-100 font-medium">{info.getValue()}</span>
               <span className="text-slate-400 mx-1.5" aria-hidden="true">
                 ·
               </span>
-              <span className="font-mono text-slate-500">{info.row.original.actorType}</span>
+              <span className="font-mono text-slate-500 dark:text-slate-400">{info.row.original.actorType}</span>
             </div>
           ),
         }),
@@ -97,7 +97,7 @@ export function AuditLogTable({
               to="/workflows/$workflowId"
               params={{ workflowId: info.getValue() }}
               title={info.getValue()}
-              className="font-mono text-xs text-blue-700 hover:underline whitespace-nowrap"
+              className="font-mono text-xs text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap"
             >
               {shortHash(info.getValue(), 8)}
             </Link>
@@ -107,7 +107,7 @@ export function AuditLogTable({
           header: "Payload",
           enableSorting: false,
           cell: (info) => (
-            <code className="text-[11px] font-mono text-slate-600 block max-w-[320px] truncate">
+            <code className="text-[11px] font-mono text-slate-600 dark:text-slate-400 block max-w-[320px] truncate">
               {JSON.stringify(info.getValue())}
             </code>
           ),
@@ -118,7 +118,7 @@ export function AuditLogTable({
           cell: (info) => (
             <span
               title={info.getValue()}
-              className="font-mono text-[11px] text-slate-500 whitespace-nowrap tabular-nums"
+              className="font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap tabular-nums"
             >
               {shortHash(info.getValue(), 14)}
             </span>
@@ -127,7 +127,7 @@ export function AuditLogTable({
         columnHelper.accessor("occurredAt", {
           header: "Timestamp",
           cell: (info) => (
-            <span className="font-mono text-xs tabular-nums text-slate-500 whitespace-nowrap">
+            <span className="font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
               {formatTimeHMS(info.getValue())}
             </span>
           ),
@@ -156,21 +156,21 @@ export function AuditLogTable({
         const ev = row.original;
         return (
           <div className="space-y-3 text-xs">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px] text-slate-600">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">
               <div className="truncate">
-                <span className="font-semibold text-slate-800">Event ID: </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Event ID: </span>
                 {ev.eventId}
               </div>
               <div className="truncate">
-                <span className="font-semibold text-slate-800">Occurred: </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Occurred: </span>
                 {ev.occurredAt}
               </div>
               <div className="truncate">
-                <span className="font-semibold text-slate-800">Prev Hash: </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Prev Hash: </span>
                 {ev.prevEventHash}
               </div>
               <div className="truncate">
-                <span className="font-semibold text-slate-800">Event Hash: </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">Event Hash: </span>
                 {ev.eventHash}
               </div>
             </div>

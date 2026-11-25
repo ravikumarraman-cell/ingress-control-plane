@@ -44,7 +44,7 @@ export function DataTable<
     return (
       <div className="p-6 space-y-3">
         {Array.from({ length: skeletonRows }).map((_, idx) => (
-          <div key={idx} className="h-10 bg-slate-100 rounded animate-pulse" />
+          <div key={idx} className="h-10 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
         ))}
       </div>
     );
@@ -67,7 +67,7 @@ export function DataTable<
       <table className="w-full text-left border-collapse">
         <thead>
           {table.getHeaderGroups().map((hg) => (
-            <tr key={hg.id} className="border-b border-slate-200 bg-slate-50/85">
+            <tr key={hg.id} className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/85 dark:bg-[#090D16]">
               {hg.headers.map((header) => {
                 const col = header.column as unknown as {
                   getCanSort?: () => boolean;
@@ -81,19 +81,19 @@ export function DataTable<
                 return (
                   <th
                     key={header.id}
-                    className="px-4 py-2.5 text-xs font-semibold text-slate-600 whitespace-nowrap"
+                    className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap"
                   >
                     {header.isPlaceholder ? null : canSort ? (
                       <button
                         type="button"
                         onClick={toggleSort}
-                        className="inline-flex items-center gap-1 hover:text-slate-950 transition-colors"
+                        className="inline-flex items-center gap-1 hover:text-slate-950 dark:hover:text-white transition-colors"
                       >
                         {flexRender(header.column.columnDef.header, header.getContext())}
                         {sorted === "asc" ? (
-                          <ArrowUp className="h-3 w-3 text-blue-700" />
+                          <ArrowUp className="h-3 w-3 text-blue-700 dark:text-sky-400" />
                         ) : sorted === "desc" ? (
-                          <ArrowDown className="h-3 w-3 text-blue-700" />
+                          <ArrowDown className="h-3 w-3 text-blue-700 dark:text-sky-400" />
                         ) : (
                           <ArrowUpDown className="h-3 w-3 text-slate-400" />
                         )}
@@ -107,12 +107,12 @@ export function DataTable<
             </tr>
           ))}
         </thead>
-        <tbody className="divide-y divide-slate-200/80 text-sm">
+        <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800 text-sm">
           {rows.map((row) => {
             const expanded = Boolean(isRowExpanded?.(row));
             return (
               <Fragment key={row.id}>
-                <tr className="hover:bg-slate-50/90 transition-colors">
+                <tr className="hover:bg-slate-50/90 dark:hover:bg-slate-800/60 transition-colors">
                   {row.getAllCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3 align-middle">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -120,7 +120,7 @@ export function DataTable<
                   ))}
                 </tr>
                 {expanded && renderExpandedRow && (
-                  <tr className="bg-slate-50/75">
+                  <tr className="bg-slate-50/75 dark:bg-[#090D16]">
                     <td colSpan={row.getAllCells().length} className="px-6 py-4">
                       {renderExpandedRow(row)}
                     </td>

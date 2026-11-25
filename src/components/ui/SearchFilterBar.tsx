@@ -30,7 +30,7 @@ export function SearchFilterBar({
       {hasActiveFilters &&
         typeof filteredCount === "number" &&
         typeof totalCount === "number" && (
-          <div className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
             <span className="tabular-nums">
               Showing {filteredCount} of {totalCount} {itemLabel}
             </span>
@@ -38,7 +38,7 @@ export function SearchFilterBar({
               <button
                 type="button"
                 onClick={onResetFilters}
-                className="text-xs font-medium text-blue-700 hover:underline whitespace-nowrap"
+                className="text-xs font-medium text-blue-700 dark:text-sky-400 hover:underline whitespace-nowrap"
               >
                 Reset filters
               </button>
@@ -54,14 +54,14 @@ export function SearchFilterBar({
           onChange={(e) => onChange(e.target.value)}
           maxLength={maxLength}
           placeholder={placeholder}
-          className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
+          className="w-full pl-8 pr-7 py-1.5 text-xs bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-colors"
         />
         {value && (
           <button
             type="button"
             onClick={() => onChange("")}
             aria-label="Clear search query"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5 rounded"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:text-slate-300 p-0.5 rounded"
           >
             <X className="h-3.5 w-3.5" />
           </button>

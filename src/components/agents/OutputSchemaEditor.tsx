@@ -17,13 +17,13 @@ export function OutputSchemaEditor({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium text-slate-700">
+        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300">
           Structured Output Schema (<span className="font-mono">outputSchema</span>)
         </span>
         <button
           type="button"
           onClick={onAdd}
-          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-50 rounded transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-blue-700 dark:text-sky-400 hover:bg-blue-50 dark:bg-sky-500/10 rounded transition-colors"
         >
           <Plus className="h-3 w-3" />
           Add Field
@@ -33,7 +33,7 @@ export function OutputSchemaEditor({
         {fields.map((field, idx) => (
           <div
             key={idx}
-            className="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-md p-2"
+            className="grid grid-cols-12 gap-2 items-center bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md p-2"
           >
             <input
               type="text"
@@ -41,13 +41,13 @@ export function OutputSchemaEditor({
               onChange={(e) => onUpdate(idx, { key: e.target.value })}
               placeholder="fieldKey"
               aria-label="Output field key"
-              className="col-span-4 px-2 py-1 text-[11px] font-mono bg-white border border-slate-200 rounded"
+              className="col-span-4 px-2 py-1 text-[11px] font-mono bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded"
             />
             <select
               value={field.type}
               onChange={(e) => onUpdate(idx, { type: e.target.value as OutputFieldType })}
               aria-label="Output field type"
-              className="col-span-3 px-2 py-1 text-[11px] bg-white border border-slate-200 rounded"
+              className="col-span-3 px-2 py-1 text-[11px] bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded"
             >
               <option value="string">string</option>
               <option value="number">number</option>
@@ -61,7 +61,7 @@ export function OutputSchemaEditor({
               onChange={(e) => onUpdate(idx, { description: e.target.value })}
               placeholder="Field description"
               aria-label="Output field description"
-              className="col-span-4 px-2 py-1 text-[11px] bg-white border border-slate-200 rounded"
+              className="col-span-4 px-2 py-1 text-[11px] bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded"
             />
             <button
               type="button"

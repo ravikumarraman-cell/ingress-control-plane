@@ -52,12 +52,12 @@ export function WorkflowsTable({
               <div className="space-y-0.5">
                 <div
                   title={requestId}
-                  className="font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap"
+                  className="font-mono text-xs tabular-nums text-slate-700 dark:text-slate-300 whitespace-nowrap"
                 >
                   {shortHash(requestId, 8)}
                 </div>
                 {row.ticketRef && (
-                  <div className="text-[11px] font-mono text-slate-500">
+                  <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                     {row.ticketRef}
                   </div>
                 )}
@@ -74,11 +74,11 @@ export function WorkflowsTable({
                 <Link
                   to="/workflows/$workflowId"
                   params={{ workflowId: row.workflowId }}
-                  className="font-semibold text-slate-900 hover:text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
+                  className="font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-700 dark:hover:text-sky-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
                 >
                   {info.getValue()}
                 </Link>
-                <div className="text-xs font-mono text-slate-500">
+                <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
                   {row.ingressRequest.hostname}
                   {row.ingressRequest.pathPrefix}
                 </div>
@@ -89,7 +89,7 @@ export function WorkflowsTable({
         columnHelper.accessor("environment", {
           header: "Environment",
           cell: (info) => (
-            <span className="font-mono text-xs text-slate-700 whitespace-nowrap">
+            <span className="font-mono text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
               {info.getValue()} · {info.row.original.ingressRequest.exposure}
             </span>
           ),
@@ -120,7 +120,7 @@ export function WorkflowsTable({
         columnHelper.accessor("requesterId", {
           header: "Requester",
           cell: (info) => (
-            <span className="text-xs text-slate-600 truncate max-w-[180px] block">
+            <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[180px] block">
               {info.getValue()}
             </span>
           ),
@@ -128,7 +128,7 @@ export function WorkflowsTable({
         columnHelper.accessor("updatedAt", {
           header: "Updated",
           cell: (info) => (
-            <span className="text-xs font-mono tabular-nums text-slate-500 whitespace-nowrap">
+            <span className="text-xs font-mono tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
               {formatTimeHMS(info.getValue())}
             </span>
           ),
@@ -141,7 +141,7 @@ export function WorkflowsTable({
               <Link
                 to="/workflows/$workflowId"
                 params={{ workflowId: info.row.original.workflowId }}
-                className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline whitespace-nowrap"
+                className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-sky-400 hover:text-blue-800 hover:underline whitespace-nowrap"
               >
                 Inspect
                 <ArrowRight className="h-3 w-3" />

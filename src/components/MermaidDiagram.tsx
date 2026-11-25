@@ -98,14 +98,14 @@ export function MermaidDiagram({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-slate-200 bg-slate-50">
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#090D16]">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap shrink-0"
           >
             {copied ? (
               <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -117,7 +117,7 @@ export function MermaidDiagram({
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors whitespace-nowrap shrink-0"
           >
             {expanded ? (
               <Minimize2 className="h-3.5 w-3.5" />
@@ -129,18 +129,18 @@ export function MermaidDiagram({
         </div>
       </div>
       <div
-        className={`p-5 overflow-auto bg-white ${
+        className={`p-5 overflow-auto bg-white dark:bg-[#0F172A] ${
           expanded ? "max-h-[900px]" : "max-h-[560px]"
         }`}
       >
         {error ? (
-          <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md p-3 font-mono">
+          <div className="text-xs text-red-700 dark:text-rose-400 bg-red-50 dark:bg-rose-500/10 border border-red-200 dark:border-rose-500/30 rounded-md p-3 font-mono">
             Mermaid Render Error: {error}
           </div>
         ) : (
           <>
             {rendering && (
-              <div className="py-12 text-center text-xs text-slate-500">
+              <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400">
                 Rendering Mermaid diagram...
               </div>
             )}

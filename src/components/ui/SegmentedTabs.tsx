@@ -44,15 +44,15 @@ export function SegmentedTabs<T extends string>({
               fullWidth ? "flex-1 justify-center" : ""
             } inline-flex items-center gap-1.5 ${padClass} text-xs font-medium rounded-md transition-all duration-150 whitespace-nowrap shrink-0 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
               active
-                ? "bg-white text-slate-950 shadow-xs ring-1 ring-slate-900/5"
-                : "text-slate-600 hover:text-slate-950"
+                ? "bg-white dark:bg-[#0F172A] text-slate-950 dark:text-slate-50 shadow-xs ring-1 ring-slate-900/5"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white"
             }`}
           >
             <span>{item.label}</span>
             {item.count !== undefined && (
               <span
                 className={`font-mono text-[11px] ${
-                  active ? "text-slate-500" : "text-slate-400"
+                  active ? "text-slate-500 dark:text-slate-400" : "text-slate-400"
                 }`}
               >
                 {item.count}

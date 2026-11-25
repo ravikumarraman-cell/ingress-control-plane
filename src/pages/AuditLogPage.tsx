@@ -60,14 +60,14 @@ export function AuditLogPage() {
               <div
                 className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md border ${
                   chainResult.valid
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                    : "bg-red-50 border-red-200 text-red-800"
+                    ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+                    : "bg-red-50 dark:bg-rose-500/10 border-red-200 dark:border-rose-500/30 text-red-800"
                 }`}
               >
                 {chainResult.valid ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
                 ) : (
-                  <ShieldAlert className="h-3.5 w-3.5 text-red-700" />
+                  <ShieldAlert className="h-3.5 w-3.5 text-red-700 dark:text-rose-400" />
                 )}
                 <span className="tabular-nums">
                   {chainResult.valid
@@ -80,7 +80,7 @@ export function AuditLogPage() {
               type="button"
               onClick={() => verifyMutation.mutate()}
               disabled={verifyMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 whitespace-nowrap transition-colors"
             >
               <ShieldCheck className="h-3.5 w-3.5" />
               Verify Hash Chain
@@ -123,12 +123,12 @@ export function AuditLogPage() {
       </div>
 
       {auditQuery.isError && (
-        <p role="alert" className="text-sm text-red-700">
+        <p role="alert" className="text-sm text-red-700 dark:text-rose-400">
           Failed to load audit events: {auditQuery.error.message}
         </p>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
         <AuditLogTable
           events={auditQuery.data?.events ?? []}
           isLoading={auditQuery.isLoading}
@@ -139,7 +139,7 @@ export function AuditLogPage() {
 
       <nav
         aria-label="Audit log pagination"
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400"
       >
         <span className="tabular-nums">
           Showing {pageStart}-{pageEnd} of {pagination?.total ?? 0} matching events
@@ -150,7 +150,7 @@ export function AuditLogPage() {
             aria-label="Previous audit log page"
             disabled={pageIndex === 0 || auditQuery.isFetching}
             onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
-            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Previous
@@ -160,7 +160,7 @@ export function AuditLogPage() {
             aria-label="Next audit log page"
             disabled={!pagination?.hasMore || auditQuery.isFetching}
             onClick={() => setPageIndex((current) => current + 1)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A] hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
             <ChevronRight className="h-3.5 w-3.5" />

@@ -159,11 +159,11 @@ function deriveNarration(
 }
 
 const TONE: Record<Narration["tone"], string> = {
-  blue: "border-blue-200 bg-blue-50/60",
-  amber: "border-amber-300 bg-amber-50/70",
-  green: "border-emerald-200 bg-emerald-50/60",
-  red: "border-red-200 bg-red-50/60",
-  slate: "border-slate-200 bg-slate-50",
+  blue: "border-blue-200 dark:border-sky-500/30 bg-blue-50/60 dark:bg-sky-500/10",
+  amber: "border-amber-300 bg-amber-50/70 dark:bg-amber-500/10",
+  green: "border-emerald-200 dark:border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-500/10",
+  red: "border-red-200 dark:border-rose-500/30 bg-red-50/60 dark:bg-rose-500/10",
+  slate: "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#090D16]",
 };
 
 interface AnimatedAgentFlowProps {
@@ -230,8 +230,8 @@ export function AnimatedAgentFlow({
         <span
           className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
             streamConnected
-              ? "text-emerald-700 border-emerald-200 bg-emerald-50"
-              : "text-slate-500 border-slate-200 bg-slate-50"
+              ? "text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10"
+              : "text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#090D16]"
           }`}
         >
           <span
@@ -242,7 +242,7 @@ export function AnimatedAgentFlow({
           {streamConnected ? "LIVE" : "OFFLINE"}
         </span>
         <div
-          className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden"
+          className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"
           role="progressbar"
           aria-valuenow={percent}
           aria-valuemin={0}
@@ -256,7 +256,7 @@ export function AnimatedAgentFlow({
             transition={{ type: "spring", stiffness: 90, damping: 20 }}
           />
         </div>
-        <span className="text-[11px] font-mono text-slate-500 tabular-nums whitespace-nowrap">
+        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums whitespace-nowrap">
           {completedCount}/{ALL_NODES.length} agents done
         </span>
       </div>
@@ -580,16 +580,16 @@ export function AnimatedAgentFlow({
           className={`rounded-lg border p-4 ${TONE[narration.tone]}`}
           aria-live="polite"
         >
-          <div className="text-sm font-semibold text-slate-900">{narration.headline}</div>
-          <p className="text-xs text-slate-700 mt-1 leading-relaxed">{narration.detail}</p>
+          <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{narration.headline}</div>
+          <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 leading-relaxed">{narration.detail}</p>
           {focusGuide && (
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-              <span className="px-2 py-1 rounded-md bg-white/80 border border-slate-200 text-slate-600">
-                <span className="font-medium text-slate-800">Receives:</span> {focusGuide.receives}
+              <span className="px-2 py-1 rounded-md bg-white dark:bg-[#0F172A]/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                <span className="font-medium text-slate-800 dark:text-slate-200">Receives:</span> {focusGuide.receives}
               </span>
               <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
-              <span className="px-2 py-1 rounded-md bg-white/80 border border-slate-200 text-slate-600">
-                <span className="font-medium text-slate-800">Produces:</span> {focusGuide.produces}
+              <span className="px-2 py-1 rounded-md bg-white dark:bg-[#0F172A]/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                <span className="font-medium text-slate-800 dark:text-slate-200">Produces:</span> {focusGuide.produces}
               </span>
             </div>
           )}
@@ -601,14 +601,14 @@ export function AnimatedAgentFlow({
           <button
             type="button"
             onClick={onCloseInspector}
-            className="absolute right-2 top-2 z-10 text-xs text-slate-500 hover:text-slate-900 px-2 py-1 rounded border border-slate-200 bg-white"
+            className="absolute right-2 top-2 z-10 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2 py-1 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0F172A]"
           >
             Close details
           </button>
           {inspector}
         </div>
       ) : (
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
           Click any agent to see what it receives, produces and who it hands off to. Switch to Detailed for the full diagram.
         </p>
       )}

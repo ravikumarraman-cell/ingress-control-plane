@@ -23,10 +23,10 @@ export function BlueprintRosterList({
   return (
     <div className="xl:col-span-5 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-900">
+        <h3 className="text-xs font-semibold text-slate-900 dark:text-slate-100">
           Reusable Dynamic Agent Roster
         </h3>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-[11px] text-slate-500 dark:text-slate-400">
           Ordered topologically at runtime
         </span>
       </div>
@@ -35,14 +35,14 @@ export function BlueprintRosterList({
         {blueprints.map((bp) => (
           <div
             key={bp.agentId}
-            className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-2"
+            className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#090D16] space-y-2"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-xs font-semibold font-mono text-slate-900 truncate">
+                <div className="text-xs font-semibold font-mono text-slate-900 dark:text-slate-100 truncate">
                   {bp.name}
                 </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
                   {bp.hookStage} · {bp.spawnedBy}
                 </div>
               </div>
@@ -52,8 +52,8 @@ export function BlueprintRosterList({
                   onClick={() => onToggle(bp)}
                   className={`px-2 py-0.5 text-[11px] font-medium rounded border transition-colors ${
                     bp.enabled
-                      ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                      : "bg-white border-slate-200 text-slate-600"
+                      ? "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300"
+                      : "bg-white dark:bg-[#0F172A] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
                   }`}
                 >
                   {bp.enabled ? "Enabled" : "Disabled"}
@@ -69,9 +69,9 @@ export function BlueprintRosterList({
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-snug">{bp.role}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-snug">{bp.role}</p>
 
-            <div className="text-[11px] font-mono text-slate-600 space-y-0.5">
+            <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
               <div>
                 <span className="text-slate-400">dependsOn:</span>{" "}
                 {bp.dependsOn.length > 0 ? bp.dependsOn.join(", ") : "none (root)"}
@@ -82,19 +82,19 @@ export function BlueprintRosterList({
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-200/70 flex flex-wrap items-center gap-2">
+            <div className="pt-2 border-t border-slate-200/70 dark:border-slate-800 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 disabled={!canAssign || isAssignPending}
                 onClick={() => onAssign(bp.agentId)}
-                className="px-2.5 py-1 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors disabled:opacity-50"
+                className="px-2.5 py-1 text-[11px] font-medium text-blue-700 dark:text-sky-400 bg-blue-50 dark:bg-sky-500/10 hover:bg-blue-100 border border-blue-200 dark:border-sky-500/30 rounded transition-colors disabled:opacity-50"
               >
                 Hook into Active Workflow
               </button>
               <button
                 type="button"
                 onClick={() => onLoadTemplate(bp)}
-                className="px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded transition-colors"
+                className="px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded transition-colors"
               >
                 Load Template
               </button>

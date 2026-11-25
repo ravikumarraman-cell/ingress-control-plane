@@ -2,14 +2,14 @@ import type { DiffHunk } from "../../shared/contracts";
 
 export function DiffHunkCard({ hunk }: { hunk: DiffHunk }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
-      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4">
-        <div className="text-xs font-mono font-medium text-slate-900">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+      <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#090D16] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+        <div className="text-xs font-mono font-medium text-slate-900 dark:text-slate-100">
           {hunk.filePath} · {hunk.resourceKind}
         </div>
         <div className="text-xs font-mono tabular-nums flex items-center gap-3">
-          <span className="text-emerald-700">+{hunk.linesAdded}</span>
-          <span className="text-red-700">-{hunk.linesRemoved}</span>
+          <span className="text-emerald-700 dark:text-emerald-400">+{hunk.linesAdded}</span>
+          <span className="text-red-700 dark:text-rose-400">-{hunk.linesRemoved}</span>
         </div>
       </div>
       <pre className="p-4 text-xs font-mono overflow-x-auto leading-relaxed bg-slate-950 text-slate-100">

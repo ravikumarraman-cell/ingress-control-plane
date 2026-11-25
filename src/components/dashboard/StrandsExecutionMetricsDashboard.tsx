@@ -67,34 +67,34 @@ function TokenUsageTooltip({ active, payload }: TokenTooltipProps) {
   if (!row) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[215px]">
-      <div className="font-mono font-semibold text-slate-900 border-b border-slate-100 pb-1 flex items-center justify-between gap-3">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[215px]">
+      <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 pb-1 flex items-center justify-between gap-3">
         <span className="truncate">{row.agentName}</span>
         {row.stopReason && (
-          <span className="text-[11px] font-normal text-slate-500">{row.stopReason}</span>
+          <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">{row.stopReason}</span>
         )}
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="inline-flex items-center gap-1.5 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <span className="h-2 w-2 rounded-xs bg-blue-700 inline-block" aria-hidden="true" />
           Input Tokens
         </span>
-        <span className="font-mono font-semibold text-slate-900">
+        <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
           {numberFormatter.format(row.inputTokens)}
         </span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="inline-flex items-center gap-1.5 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <span className="h-2 w-2 rounded-xs bg-sky-500 inline-block" aria-hidden="true" />
           Output Tokens
         </span>
-        <span className="font-mono font-semibold text-slate-900">
+        <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
           {numberFormatter.format(row.outputTokens)}
         </span>
       </div>
-      <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] font-mono text-slate-600 tabular-nums">
+      <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] font-mono text-slate-600 dark:text-slate-400 tabular-nums">
         <span>Total Tokens</span>
-        <span className="font-semibold text-slate-900">
+        <span className="font-semibold text-slate-900 dark:text-slate-100">
           {numberFormatter.format(row.totalTokens)}
         </span>
       </div>
@@ -115,26 +115,26 @@ function ToolLatencyTooltip({ active, payload }: ToolTooltipProps) {
   if (!tool) return null;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[220px]">
-      <div className="font-mono font-semibold text-slate-900 border-b border-slate-100 pb-1">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[220px]">
+      <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 pb-1">
         {tool.toolName}
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-600">Avg Latency</span>
+        <span className="text-slate-600 dark:text-slate-400">Avg Latency</span>
         <span className="font-mono font-semibold text-violet-700">
           {tool.avgLatencyMs.toFixed(1)} ms
         </span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="text-slate-600">Cumulative Tool Time</span>
-        <span className="font-mono font-semibold text-slate-900">
+        <span className="text-slate-600 dark:text-slate-400">Cumulative Tool Time</span>
+        <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
           {tool.totalTimeMs.toFixed(1)} ms
         </span>
       </div>
-      <div className="pt-1 border-t border-slate-100 grid grid-cols-3 gap-2 text-[11px] font-mono text-slate-600 tabular-nums">
+      <div className="pt-1 border-t border-slate-100 grid grid-cols-3 gap-2 text-[11px] font-mono text-slate-600 dark:text-slate-400 tabular-nums">
         <span>Calls: {tool.callCount}</span>
-        <span className="text-emerald-700">OK: {tool.successCount}</span>
-        <span className={tool.errorCount > 0 ? "text-red-700" : "text-slate-500"}>
+        <span className="text-emerald-700 dark:text-emerald-400">OK: {tool.successCount}</span>
+        <span className={tool.errorCount > 0 ? "text-red-700 dark:text-rose-400" : "text-slate-500 dark:text-slate-400"}>
           Err: {tool.errorCount}
         </span>
       </div>
@@ -166,30 +166,30 @@ function IterationSuccessTooltip({ active, payload }: IterationTooltipProps) {
   const duration = row.durationMs ?? row.avgDurationMs ?? 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[220px]">
-      <div className="font-mono font-semibold text-slate-900 border-b border-slate-100 pb-1 flex items-center justify-between gap-3">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md px-3 py-2.5 shadow-sm text-xs space-y-1.5 min-w-[220px]">
+      <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 pb-1 flex items-center justify-between gap-3">
         <span className="truncate">{row.agentName}</span>
-        <span className="text-[11px] font-normal text-slate-500 tabular-nums">
+        <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400 tabular-nums">
           {rate.toFixed(1)}% pass
         </span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="inline-flex items-center gap-1.5 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <span className="h-2 w-2 rounded-xs bg-emerald-600 inline-block" aria-hidden="true" />
           Successful Iterations
         </span>
-        <span className="font-mono font-semibold text-emerald-700">{succ}</span>
+        <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">{succ}</span>
       </div>
       <div className="flex items-center justify-between gap-4 tabular-nums">
-        <span className="inline-flex items-center gap-1.5 text-slate-600">
+        <span className="inline-flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
           <span className="h-2 w-2 rounded-xs bg-red-600 inline-block" aria-hidden="true" />
           Failed / Guardrail Stops
         </span>
-        <span className="font-mono font-semibold text-red-700">{fail}</span>
+        <span className="font-mono font-semibold text-red-700 dark:text-rose-400">{fail}</span>
       </div>
-      <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] font-mono text-slate-600 tabular-nums">
+      <div className="pt-1 border-t border-slate-100 flex items-center justify-between gap-4 text-[11px] font-mono text-slate-600 dark:text-slate-400 tabular-nums">
         <span>Cycle Duration</span>
-        <span className="font-semibold text-slate-900">{duration} ms</span>
+        <span className="font-semibold text-slate-900 dark:text-slate-100">{duration} ms</span>
       </div>
     </div>
   );
@@ -218,20 +218,20 @@ export function StrandsExecutionMetricsDashboard() {
     return (
       <section
         aria-label="Strands Agents Execution Metrics"
-        className="bg-white border border-slate-200 rounded-lg p-5 space-y-4"
+        className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5 space-y-4"
       >
         <div className="flex items-center justify-between gap-4">
-          <div className="h-5 w-72 bg-slate-100 rounded animate-pulse" />
-          <div className="h-8 w-44 bg-slate-100 rounded animate-pulse" />
+          <div className="h-5 w-72 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+          <div className="h-8 w-44 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-16 bg-slate-50 border border-slate-200 rounded-md animate-pulse" />
+            <div key={i} className="h-16 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md animate-pulse" />
           ))}
         </div>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-64 bg-slate-50 border border-slate-200 rounded-md animate-pulse" />
+            <div key={i} className="h-64 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-md animate-pulse" />
           ))}
         </div>
       </section>
@@ -242,7 +242,7 @@ export function StrandsExecutionMetricsDashboard() {
     return (
       <section
         aria-label="Strands Agents Execution Metrics"
-        className="bg-white border border-slate-200 rounded-lg p-5"
+        className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-5"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-xs text-red-800">
@@ -252,7 +252,7 @@ export function StrandsExecutionMetricsDashboard() {
           <button
             type="button"
             onClick={() => telemetryQuery.refetch()}
-            className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 whitespace-nowrap"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 whitespace-nowrap"
           >
             Retry
           </button>
@@ -303,21 +303,21 @@ export function StrandsExecutionMetricsDashboard() {
   return (
     <section
       aria-label="Strands Agents Execution Metrics"
-      className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+      className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden"
     >
       {/* Dashboard Header */}
-      <div className="px-5 py-4 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 flex-wrap">
-            <Cpu className="h-4 w-4 text-blue-700 shrink-0" />
-            <h2 className="text-base font-semibold text-slate-900">
+            <Cpu className="h-4 w-4 text-blue-700 dark:text-sky-400 shrink-0" />
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               Strands Agents Execution Metrics
             </h2>
-            <span className="text-xs font-mono text-slate-500">
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
               {data.sdkVersion} · {data.harnessVersion}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
             Token consumption, read-only tool call latency, and agent loop iteration success across
             Strands Graph, Harness, and Eval runs ·{" "}
             {data.telemetryConfig.otlpEnabled ? "OTLP Exporter Active" : "Local Meter Active"} ·{" "}
@@ -342,7 +342,7 @@ export function StrandsExecutionMetricsDashboard() {
             type="button"
             onClick={() => telemetryQuery.refetch()}
             disabled={telemetryQuery.isFetching}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:opacity-60 transition-colors whitespace-nowrap shrink-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${telemetryQuery.isFetching ? "animate-spin" : ""}`} />
             Refresh
@@ -362,24 +362,24 @@ export function StrandsExecutionMetricsDashboard() {
 
       {/* Inline Eval Feedback Banner (only rendered after an explicit eval run) */}
       {lastEvalReport && (
-        <div className="px-5 py-2.5 border-b border-slate-200 bg-slate-50/70 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="px-5 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#090D16] flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 min-w-0">
             {lastEvalReport.allPassed ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             ) : (
               <XCircle className="h-4 w-4 text-red-600 shrink-0" />
             )}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
               Strands Eval Suite: {lastEvalReport.passedCount}/{lastEvalReport.totalCount} Passed
             </span>
-            <span className="text-slate-500 font-mono tabular-nums">
+            <span className="text-slate-500 dark:text-slate-400 font-mono tabular-nums">
               @ {formatTimeHMS(lastEvalReport.evaluatedAt)}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-600 tabular-nums">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-600 dark:text-slate-400 tabular-nums">
             {lastEvalReport.cases.map((c) => (
               <span key={c.evalId} className="inline-flex items-center gap-1">
-                <span className={c.passed ? "text-emerald-700" : "text-red-700"}>
+                <span className={c.passed ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-rose-400"}>
                   {c.evalId}: {c.passed ? "PASS" : "FAIL"}
                 </span>
                 <span className="text-slate-400">({c.durationMs}ms)</span>
@@ -390,26 +390,26 @@ export function StrandsExecutionMetricsDashboard() {
       )}
 
       {/* 4-KPI Summary Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-slate-200 divide-y lg:divide-y-0 divide-x divide-slate-200 bg-slate-50/40">
+      <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-slate-200 dark:border-slate-800 divide-y lg:divide-y-0 divide-x divide-slate-200 dark:divide-slate-800 bg-slate-50/40 dark:bg-[#090D16]">
         <div className="px-5 py-3.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-            <Layers className="h-3.5 w-3.5 text-blue-700 shrink-0" />
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <Layers className="h-3.5 w-3.5 text-blue-700 dark:text-sky-400 shrink-0" />
             Total Token Usage
           </div>
           <div className="mt-1 flex items-baseline gap-2 tabular-nums">
-            <span className="text-xl font-semibold font-mono text-slate-900">
+            <span className="text-xl font-semibold font-mono text-slate-900 dark:text-slate-100">
               {numberFormatter.format(aggregates.totalTokens)}
             </span>
-            <span className="text-[11px] font-mono text-slate-500">tokens</span>
+            <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">tokens</span>
           </div>
-          <div className="mt-0.5 text-[11px] font-mono text-slate-500 tabular-nums">
+          <div className="mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
             {numberFormatter.format(aggregates.inputTokens)} in ·{" "}
             {numberFormatter.format(aggregates.outputTokens)} out
           </div>
         </div>
 
         <div className="px-5 py-3.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
             <Wrench className="h-3.5 w-3.5 text-violet-700 shrink-0" />
             Avg Tool Call Latency
           </div>
@@ -417,44 +417,44 @@ export function StrandsExecutionMetricsDashboard() {
             <span className="text-xl font-semibold font-mono text-violet-800">
               {aggregates.avgToolLatencyMs.toFixed(1)}
             </span>
-            <span className="text-xs font-mono text-slate-500">ms</span>
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">ms</span>
           </div>
-          <div className="mt-0.5 text-[11px] font-mono text-slate-500 tabular-nums">
+          <div className="mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
             {numberFormatter.format(aggregates.totalToolCalls)} tool call(s) across{" "}
             {toolLatencyMetrics.length} tools
           </div>
         </div>
 
         <div className="px-5 py-3.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
             Successful Agent Iterations
           </div>
           <div className="mt-1 flex items-baseline gap-2 tabular-nums">
-            <span className="text-xl font-semibold font-mono text-emerald-700">
+            <span className="text-xl font-semibold font-mono text-emerald-700 dark:text-emerald-400">
               {numberFormatter.format(aggregates.successfulIterations)}
             </span>
-            <span className="text-xs font-mono text-slate-500">
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
               / {numberFormatter.format(aggregates.totalIterations)} ({aggregates.iterationSuccessRatePct.toFixed(1)}%)
             </span>
           </div>
-          <div className="mt-0.5 text-[11px] font-mono text-slate-500 tabular-nums">
+          <div className="mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
             {aggregates.failedIterations} guardrail / policy stop(s)
           </div>
         </div>
 
         <div className="px-5 py-3.5">
-          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
-            <Clock className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+            <Clock className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
             Agent Invocations
           </div>
           <div className="mt-1 flex items-baseline gap-2 tabular-nums">
-            <span className="text-xl font-semibold font-mono text-slate-900">
+            <span className="text-xl font-semibold font-mono text-slate-900 dark:text-slate-100">
               {numberFormatter.format(aggregates.totalInvocations)}
             </span>
-            <span className="text-xs font-mono text-slate-500">runs</span>
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">runs</span>
           </div>
-          <div className="mt-0.5 text-[11px] font-mono text-slate-500 tabular-nums">
+          <div className="mt-0.5 text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums">
             {aggregates.liveInvocations} live SDK · {aggregates.avgDurationMs} ms avg duration
           </div>
         </div>
@@ -462,10 +462,10 @@ export function StrandsExecutionMetricsDashboard() {
 
       {isEmpty ? (
         <div className="p-10 text-center space-y-2">
-          <p className="text-sm font-medium text-slate-900">
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
             No Strands agent executions recorded yet
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Trigger a workflow or click Run Strands Evals to stream token, tool latency, and cycle metrics.
           </p>
         </div>
@@ -474,15 +474,15 @@ export function StrandsExecutionMetricsDashboard() {
           {/* Three Recharts Visualizations */}
           <div className="p-5 grid grid-cols-1 xl:grid-cols-3 gap-5">
             {/* Chart 1: Token Usage */}
-            <div className="border border-slate-200 rounded-lg p-4 flex flex-col">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Token Usage</h3>
-                  <p className="text-[11px] text-slate-500">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Token Usage</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Input vs. output tokens ({viewMode === "timeline" ? "chronological runs" : "by agent"})
                   </p>
                 </div>
-                <span className="text-[11px] font-mono text-slate-500 tabular-nums shrink-0">
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
                   {numberFormatter.format(aggregates.totalTokens)} tok
                 </span>
               </div>
@@ -531,7 +531,7 @@ export function StrandsExecutionMetricsDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-4 text-[11px] text-slate-600">
+              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-xs bg-blue-700 inline-block" aria-hidden="true" />
                   Input Tokens
@@ -544,11 +544,11 @@ export function StrandsExecutionMetricsDashboard() {
             </div>
 
             {/* Chart 2: Tool Call Latency */}
-            <div className="border border-slate-200 rounded-lg p-4 flex flex-col">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Tool Call Latency</h3>
-                  <p className="text-[11px] text-slate-500">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Tool Call Latency</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Mean execution latency (ms) per read-only / vended tool
                   </p>
                 </div>
@@ -558,7 +558,7 @@ export function StrandsExecutionMetricsDashboard() {
               </div>
 
               {topTools.length === 0 ? (
-                <div className="h-[230px] flex items-center justify-center text-xs text-slate-500 border border-dashed border-slate-200 rounded">
+                <div className="h-[230px] flex items-center justify-center text-xs text-slate-500 dark:text-slate-400 border border-dashed border-slate-200 dark:border-slate-800 rounded">
                   No tool calls captured yet.
                 </div>
               ) : (
@@ -605,7 +605,7 @@ export function StrandsExecutionMetricsDashboard() {
                 </div>
               )}
 
-              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px] text-slate-600">
+              <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-xs bg-violet-600 inline-block" aria-hidden="true" />
                   Healthy Tool Latency
@@ -618,17 +618,17 @@ export function StrandsExecutionMetricsDashboard() {
             </div>
 
             {/* Chart 3: Successful Agent Iterations */}
-            <div className="border border-slate-200 rounded-lg p-4 flex flex-col">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-lg p-4 flex flex-col">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     Successful Agent Iterations
                   </h3>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     Completed vs. failed loop cycles & duration trend
                   </p>
                 </div>
-                <span className="text-[11px] font-mono text-emerald-700 tabular-nums shrink-0">
+                <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 tabular-nums shrink-0">
                   {aggregates.iterationSuccessRatePct.toFixed(1)}% pass
                 </span>
               </div>
@@ -699,7 +699,7 @@ export function StrandsExecutionMetricsDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+              <div className="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center gap-3 text-[11px] text-slate-600 dark:text-slate-400">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-2 w-2 rounded-xs bg-emerald-600 inline-block" aria-hidden="true" />
                   Succeeded
@@ -717,17 +717,17 @@ export function StrandsExecutionMetricsDashboard() {
           </div>
 
           {/* Compact Recent Invocations & Provider Readiness Footer */}
-          <div className="border-t border-slate-200 px-5 py-4 bg-slate-50/30 space-y-3">
+          <div className="border-t border-slate-200 dark:border-slate-800 px-5 py-4 bg-slate-50/30 dark:bg-[#090D16] space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h3 className="text-xs font-semibold text-slate-800 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                 Recent Strands Agent Executions
               </h3>
-              <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-500">
+              <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-slate-500 dark:text-slate-400">
                 <span>Providers:</span>
                 {providers.map((p) => (
                   <span
                     key={p.provider}
-                    className={p.configured ? "text-emerald-700 font-medium" : "text-slate-400"}
+                    className={p.configured ? "text-emerald-700 dark:text-emerald-400 font-medium" : "text-slate-400"}
                   >
                     {p.provider}
                     {p.configured ? " ✓" : ""}
@@ -736,10 +736,10 @@ export function StrandsExecutionMetricsDashboard() {
               </div>
             </div>
 
-            <div className="overflow-x-auto border border-slate-200 rounded-md bg-white">
+            <div className="overflow-x-auto border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-[#0F172A]">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50/70 text-[11px] font-medium text-slate-500">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#090D16] text-[11px] font-medium text-slate-500 dark:text-slate-400">
                     <th className="py-2 px-3">Agent</th>
                     <th className="py-2 px-3">Source</th>
                     <th className="py-2 px-3">Stop Reason</th>
@@ -749,28 +749,28 @@ export function StrandsExecutionMetricsDashboard() {
                     <th className="py-2 px-3 text-right">Duration</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-mono tabular-nums">
                   {recentInvocations.slice(0, 6).map((inv) => (
-                    <tr key={inv.recordId} className="hover:bg-slate-50/70">
-                      <td className="py-2 px-3 font-sans font-medium text-slate-900">
+                    <tr key={inv.recordId} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/60">
+                      <td className="py-2 px-3 font-sans font-medium text-slate-900 dark:text-slate-100">
                         {inv.agentName}
                       </td>
-                      <td className="py-2 px-3 text-[11px] text-slate-600">
+                      <td className="py-2 px-3 text-[11px] text-slate-600 dark:text-slate-400">
                         {inv.source === "live_strands" ? "Live Strands SDK" : "Workflow Trace"}
                       </td>
                       <td className="py-2 px-3 text-[11px]">
                         <span
                           className={
-                            inv.failedCycles > 0 ? "text-red-700 font-medium" : "text-emerald-700"
+                            inv.failedCycles > 0 ? "text-red-700 dark:text-rose-400 font-medium" : "text-emerald-700 dark:text-emerald-400"
                           }
                         >
                           {inv.stopReason}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-right text-slate-800">
+                      <td className="py-2 px-3 text-right text-slate-800 dark:text-slate-200">
                         {inv.successfulCycles}/{inv.totalCycles}
                       </td>
-                      <td className="py-2 px-3 text-right text-slate-800">
+                      <td className="py-2 px-3 text-right text-slate-800 dark:text-slate-200">
                         {inv.tokenUsage.totalTokens}{" "}
                         <span className="text-[11px] text-slate-400">
                           ({inv.tokenUsage.inputTokens}/{inv.tokenUsage.outputTokens})
@@ -779,7 +779,7 @@ export function StrandsExecutionMetricsDashboard() {
                       <td className="py-2 px-3 text-right text-violet-700">
                         {inv.toolCallsCount > 0 ? `${inv.avgToolLatencyMs.toFixed(1)} ms` : "—"}
                       </td>
-                      <td className="py-2 px-3 text-right text-slate-800">{inv.durationMs} ms</td>
+                      <td className="py-2 px-3 text-right text-slate-800 dark:text-slate-200">{inv.durationMs} ms</td>
                     </tr>
                   ))}
                 </tbody>

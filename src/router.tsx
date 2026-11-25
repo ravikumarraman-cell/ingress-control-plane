@@ -10,8 +10,8 @@ import { RootLayout } from "./components/layout/RootLayout";
 function RoutePendingFallback() {
   return (
     <div className="space-y-4">
-      <div className="h-16 bg-white border border-slate-200 rounded-lg animate-pulse" />
-      <div className="h-80 bg-white border border-slate-200 rounded-lg animate-pulse" />
+      <div className="h-16 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg animate-pulse" />
+      <div className="h-80 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg animate-pulse" />
     </div>
   );
 }
@@ -19,9 +19,9 @@ function RoutePendingFallback() {
 const rootRoute = createRootRoute({
   component: RootLayout,
   notFoundComponent: () => (
-    <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
-      <h2 className="text-base font-semibold text-slate-900">Route Not Found</h2>
-      <p className="text-xs text-slate-500 mt-1">
+    <div className="bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-lg p-8 text-center">
+      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Route Not Found</h2>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
         The requested control plane view does not exist.
       </p>
     </div>
@@ -81,6 +81,12 @@ export const strandsMetricsRoute = createRoute({
   component: lazyRouteComponent(() => import("./pages/StrandsMetricsPage"), "StrandsMetricsPage"),
 });
 
+export const studioRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/studio",
+  component: lazyRouteComponent(() => import("./pages/EdgeStudioPage"), "EdgeStudioPage"),
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   workflowsRoute,
@@ -90,6 +96,7 @@ const routeTree = rootRoute.addChildren([
   architectureRoute,
   agentsRoute,
   strandsMetricsRoute,
+  studioRoute,
 ]);
 
 export const router = createRouter({

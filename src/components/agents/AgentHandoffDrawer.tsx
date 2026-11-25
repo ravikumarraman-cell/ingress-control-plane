@@ -56,35 +56,35 @@ export function AgentHandoffDrawer({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-2xl bg-white h-full border-l border-slate-200 flex flex-col shadow-xl">
+      <div className="w-full max-w-2xl bg-white dark:bg-[#0F172A] h-full border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-xl">
         {/* Drawer Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
               <span>{hookStage}</span>
               <span aria-hidden="true">·</span>
               <span>{blueprint?.spawnedBy ?? "CORE"}</span>
               <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1 text-slate-700">
+              <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300">
                 <Lock className="h-3 w-3" />
                 sa-ingress-readonly
               </span>
             </div>
             <h2
               id="handoff-drawer-title"
-              className="text-lg font-semibold text-slate-900 mt-1 truncate"
+              className="text-lg font-semibold text-slate-900 dark:text-slate-100 mt-1 truncate"
             >
               {agentName}
             </h2>
             {blueprint?.role && (
-              <p className="text-xs text-slate-600 mt-0.5">{blueprint.role}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{blueprint.role}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close handoff inspector"
-            className="p-1.5 text-slate-500 hover:text-slate-900 rounded-md hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -93,34 +93,34 @@ export function AgentHandoffDrawer({
         {/* Drawer Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
           {/* Status & Telemetry Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-lg p-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 rounded-lg p-3.5">
             <div>
-              <div className="text-[11px] text-slate-500">Execution Status</div>
-              <div className="font-semibold text-slate-900 mt-0.5 flex items-center gap-1">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Execution Status</div>
+              <div className="font-semibold text-slate-900 dark:text-slate-100 mt-0.5 flex items-center gap-1">
                 {status === "COMPLETED" && (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
                 )}
                 {(status === "VETOED" || status === "SKIPPED_UPSTREAM_FAILED") && (
-                  <ShieldAlert className="h-3.5 w-3.5 text-red-700 shrink-0" />
+                  <ShieldAlert className="h-3.5 w-3.5 text-red-700 dark:text-rose-400 shrink-0" />
                 )}
                 <span>{status}</span>
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-slate-500">Risk Delta</div>
-              <div className="font-mono font-semibold text-slate-900 mt-0.5 tabular-nums">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Risk Delta</div>
+              <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
                 {output?.riskDelta ?? "NONE"}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-slate-500">Confidence</div>
-              <div className="font-mono font-semibold text-slate-900 mt-0.5 tabular-nums">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Confidence</div>
+              <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
                 {output ? `${Math.round(output.confidence * 100)}%` : "N/A"}
               </div>
             </div>
             <div>
-              <div className="text-[11px] text-slate-500">Duration</div>
-              <div className="font-mono font-semibold text-slate-900 mt-0.5 tabular-nums">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Duration</div>
+              <div className="font-mono font-semibold text-slate-900 dark:text-slate-100 mt-0.5 tabular-nums">
                 {assignment?.durationMs !== undefined ? `${assignment.durationMs}ms` : "—"}
               </div>
             </div>
@@ -128,7 +128,7 @@ export function AgentHandoffDrawer({
 
           {/* Veto / Skip Callout */}
           {(output?.vetoTriggered || status === "SKIPPED_UPSTREAM_FAILED") && (
-            <div className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-900 flex items-start gap-2.5">
+            <div className="p-3.5 rounded-lg border border-red-200 dark:border-rose-500/30 bg-red-50 dark:bg-rose-500/10 text-red-900 flex items-start gap-2.5">
               <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
                 <div className="font-semibold">
@@ -147,27 +147,27 @@ export function AgentHandoffDrawer({
 
           {/* Summary & Audit Digest */}
           <div className="space-y-2">
-            <div className="font-semibold text-slate-900">Handoff Summary</div>
-            <p className="text-slate-700 bg-white border border-slate-200 rounded-md p-3 leading-relaxed">
+            <div className="font-semibold text-slate-900 dark:text-slate-100">Handoff Summary</div>
+            <p className="text-slate-700 dark:text-slate-300 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-md p-3 leading-relaxed">
               {output?.summary ??
                 assignment?.resolvedTaskPrompt ??
                 "No structured output recorded yet for this node."}
             </p>
             {assignment?.auditEventHash && (
-              <div className="text-[11px] font-mono text-slate-500 tabular-nums break-all">
+              <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 tabular-nums break-all">
                 Audit Event SHA-256:{" "}
-                <span className="text-slate-800">{assignment.auditEventHash}</span>
+                <span className="text-slate-800 dark:text-slate-200">{assignment.auditEventHash}</span>
               </div>
             )}
           </div>
 
           {/* Upstream Dependencies */}
           <div className="space-y-2">
-            <div className="font-semibold text-slate-900">
+            <div className="font-semibold text-slate-900 dark:text-slate-100">
               Upstream Dependencies ({dependsOn.length})
             </div>
             {dependsOn.length === 0 ? (
-              <p className="text-slate-500">
+              <p className="text-slate-500 dark:text-slate-400">
                 Root stage task — receives workflow Intake parameters directly without waiting on
                 upstream dependencies.
               </p>
@@ -178,7 +178,7 @@ export function AgentHandoffDrawer({
                     key={dep}
                     type="button"
                     onClick={() => onSelectUpstreamAgent?.(dep)}
-                    className="px-2.5 py-1 text-xs font-mono bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-md transition-colors"
+                    className="px-2.5 py-1 text-xs font-mono bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-md transition-colors"
                   >
                     ← {dep}
                   </button>
@@ -202,10 +202,10 @@ export function AgentHandoffDrawer({
           {/* Resolved Prompt */}
           {assignment?.resolvedTaskPrompt && (
             <div className="space-y-1.5">
-              <div className="font-semibold text-slate-900">
+              <div className="font-semibold text-slate-900 dark:text-slate-100">
                 Resolved Prompt (Post-Interpolation)
               </div>
-              <pre className="p-3.5 bg-slate-50 border border-slate-200 text-slate-800 rounded-lg font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+              <pre className="p-3.5 bg-slate-50 dark:bg-[#090D16] border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-lg font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
                 {assignment.resolvedTaskPrompt}
               </pre>
             </div>
